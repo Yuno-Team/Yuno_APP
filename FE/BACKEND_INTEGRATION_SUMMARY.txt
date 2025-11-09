@@ -1,0 +1,347 @@
+================================================================================
+YUNO FLUTTER APP - BACKEND INTEGRATION ARCHITECTURE OVERVIEW
+================================================================================
+
+CURRENT ARCHITECTURE STATE:
+==========================
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │                   UI LAYER (Screens)                         │
+    │  18 Screen Widgets (mostly UI complete, no real API calls) │
+    └──────────────────────┬──────────────────────────────────────┘
+                           │ setState()
+                           │ (Local State Management)
+                           ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │                  SERVICE LAYER                              │
+    │  ┌──────────────────┐    ┌──────────────────────┐          │
+    │  │  AuthService     │    │  PolicyService       │          │
+    │  ├──────────────────┤    ├──────────────────────┤          │
+    │  │ signInGoogle()   │    │ getRecommended()     │          │
+    │  │ signInNaver()    │    │ getPopular()         │          │
+    │  │ signInKakao()    │    │ getUpcoming()        │          │
+    │  │ signOut()        │    │ searchPolicies()     │          │
+    │  │ updateProfile()  │    │ bookmarkPolicy()     │          │
+    │  │ (ALL STUBS)      │    │ (ALL MOCK DATA)      │          │
+    │  └──────────────────┘    └──────────────────────┘          │
+    └──────────────────────┬───────────────────────────────────────┘
+                           │ (NO HTTP CLIENT)
+                           │ (Returns mock data / hardcoded delays)
+                           ▼
+    ┌─────────────────────────────────────────────────────────────┐
+    │              MOCK/STUB DATA LAYER                           │
+    │  - Hardcoded sample policies                                │
+    │  - Fixed authentication mock users                          │
+    │  - No real HTTP requests                                    │
+    │  - Future.delayed() for simulation                          │
+    └──────────────────────────────────────────────────────────────┘
+
+
+WHAT'S MISSING (CRITICAL):
+==========================
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │              EXPECTED: HTTP CLIENT LAYER                    │
+    │  ┌──────────────────────────────────────────────────────┐   │
+    │  │  lib/services/api_client.dart (NOT EXISTS)          │   │
+    │  │  - Base URL configuration                           │   │
+    │  │  - Request/Response interceptors                    │   │
+    │  │  - Token management & injection                     │   │
+    │  │  - Error handling & retry logic                     │   │
+    │  │  - Timeout configuration                            │   │
+    │  │  - Debug logging                                    │   │
+    │  └──────────────────────────────────────────────────────┘   │
+    │                                                              │
+    │  ┌──────────────────────────────────────────────────────┐   │
+    │  │  lib/constants/api_constants.dart (NOT EXISTS)      │   │
+    │  │  - API_BASE_URL                                     │   │
+    │  │  - Endpoint paths                                   │   │
+    │  │  - Timeout duration                                 │   │
+    │  │  - Environment configs                              │   │
+    │  └──────────────────────────────────────────────────────┘   │
+    │                                                              │
+    │  ┌──────────────────────────────────────────────────────┐   │
+    │  │  OAuth Integration (NOT IMPLEMENTED)                 │   │
+    │  │  - google_sign_in SDK                               │   │
+    │  │  - flutter_naver_login SDK                          │   │
+    │  │  - kakao_flutter_sdk SDK                            │   │
+    │  │  - Token storage (shared_preferences unused)        │   │
+    │  │  - Token refresh mechanism                          │   │
+    │  └──────────────────────────────────────────────────────┘   │
+    └─────────────────────────────────────────────────────────────┘
+
+
+DATA MODELS STATUS:
+===================
+
+    COMPLETE & READY:
+    ✓ User Model (lib/models/user.dart)
+      - Complete JSON serialization (fromJson/toJson)
+      - All fields defined
+      - copyWith() for immutability
+
+    ✓ Policy Model (lib/models/policy.dart)
+      - Complete JSON serialization
+      - Helper getters (title, category, region, deadlineDisplay)
+      - Matches API response structure
+
+    ✓ PolicyFilter Model (lib/models/policy_filter.dart)
+      - Complete filter options
+      - Code mappings for backend (policyMethodCodes, etc.)
+      - toApiJson() for backend transmission
+
+    ✓ SavedPolicy Model (lib/models/saved_policy.dart)
+      - Complete structure
+      - JSON serialization
+
+
+API ENDPOINTS (From API_INTEGRATION_GUIDE.md):
+==============================================
+
+    DEFINED BUT NOT IMPLEMENTED:
+    
+    1. GET /api/policies/search
+       Query: query, mainCategory, subCategory, codes for filters
+       Response: { success, data[], total, page, limit }
+       Current Status: NOT CALLED (mock data in explore results)
+
+    2. GET /api/policies/{policyId}
+       Response: { success, data: policy details }
+       Current Status: Mock search of sample policies only
+
+    3. POST /api/policies/{policyId}/ai-summary
+       Body: { userProfile: {...} }
+       Response: { success, data: { summary, matchScore, recommendations } }
+       Current Status: 2-second delay simulation only
+
+    4. OAuth Endpoints (Not documented, assumed to exist)
+       - Google OAuth flow
+       - Naver OAuth flow
+       - Kakao OAuth flow
+       Current Status: NOT IMPLEMENTED
+
+
+CRITICAL TODO ITEMS:
+====================
+
+    AUTHENTICATION FLOW:
+    [ ] Integrate OAuth libraries
+    [ ] Implement token storage with SharedPreferences
+    [ ] Create TokenManager class
+    [ ] Add token refresh mechanism
+    [ ] Implement 401 error handling
+    [ ] Connect LoginScreen to real OAuth providers
+
+    HTTP CLIENT:
+    [ ] Create ApiClient class with base URL config
+    [ ] Implement request/response logging
+    [ ] Add error handling wrapper
+    [ ] Implement retry logic
+    [ ] Add timeout configuration
+
+    API SERVICE METHODS:
+    [ ] Replace mock data in PolicyService.searchPolicies()
+    [ ] Implement actual GET /api/policies/search call
+    [ ] Replace mock in PolicyDetailScreen._loadPolicy()
+    [ ] Implement actual GET /api/policies/{id} call
+    [ ] Replace stub in PolicyAiSummaryScreen
+    [ ] Implement actual POST /api/policies/{id}/ai-summary call
+    [ ] Implement bookmark/unbookmark API calls
+
+    STATE MANAGEMENT:
+    [ ] Consider Provider pattern (provider: ^6.1.1 is installed)
+    [ ] Add loading/error states
+    [ ] Implement response caching
+
+    CONFIGURATION:
+    [ ] Create lib/constants/api_constants.dart
+    [ ] Define API_BASE_URL constant
+    [ ] Add environment-specific configs
+    [ ] Setup build flavors (dev/prod)
+
+
+DEPENDENCIES STATUS:
+====================
+
+    INSTALLED & USED:
+    ✓ flutter: SDK
+    ✓ google_fonts: ^6.1.0 (UI)
+    ✓ flutter_svg: ^2.0.9 (Icons)
+    ✓ url_launcher: ^6.2.2 (Open URLs)
+
+    INSTALLED BUT NOT USED:
+    - provider: ^6.1.1 (Declared, not used for state management)
+    - http: ^1.1.0 (Declared, no HTTP calls made)
+    - shared_preferences: ^2.2.2 (Available, not used for token storage)
+
+    NOT INSTALLED (REQUIRED):
+    [ ] google_sign_in (OAuth)
+    [ ] flutter_naver_login (OAuth)
+    [ ] kakao_flutter_sdk (OAuth)
+
+
+FILE LOCATIONS REFERENCE:
+========================
+
+    KEY SERVICE FILES:
+    /FE/lib/services/auth_service.dart       - Authentication (STUBS)
+    /FE/lib/services/policy_service.dart     - Policies (MOCK DATA)
+    [MISSING] /FE/lib/services/api_client.dart
+    [MISSING] /FE/lib/services/token_manager.dart
+
+    KEY MODEL FILES:
+    /FE/lib/models/user.dart                 - User model (COMPLETE)
+    /FE/lib/models/policy.dart               - Policy model (COMPLETE)
+    /FE/lib/models/policy_filter.dart        - Filter model (COMPLETE)
+    /FE/lib/models/saved_policy.dart         - SavedPolicy model (COMPLETE)
+
+    KEY CONFIG FILES:
+    [MISSING] /FE/lib/constants/api_constants.dart
+    [MISSING] /FE/.env (environment variables)
+
+    API DOCUMENTATION:
+    /FE/API_INTEGRATION_GUIDE.md              - Comprehensive API spec
+
+    DEPENDENCY FILE:
+    /FE/pubspec.yaml                         - Dependencies
+
+
+SCREEN-BY-SCREEN STATUS:
+========================
+
+    SCREEN NAME                     CURRENT STATUS           NEEDS API CALL
+    ────────────────────────────────────────────────────────────────────────
+    LoginScreen                     TODO stubs              OAuth signIn
+    ProfileInputScreen              (Not analyzed)          updateProfile
+    SplashScreen                    (Not analyzed)          checkAuth
+    
+    HomeScreen                      Hardcoded mock data     getRecommended
+                                                            getPopular
+                                                            getUpcoming
+
+    ExploreEntryScreen              UI only                 (None)
+    ExploreFilterScreen             UI only                 (Passes filters)
+    ExploreResultsScreen            Hardcoded mock data     searchPolicies()
+
+    PolicyDetailScreen              Mock search             getPolicyDetail()
+    PolicyAiSummaryScreen           2sec delay sim          getAiSummary()
+
+    SavedPoliciesScreen             (Not analyzed)          getSavedPolicies()
+    MyScreen                        (Not analyzed)          getUserProfile()
+    MyProfileEditScreen             (Not analyzed)          updateUserProfile()
+    MyInterestsEditScreen           (Not analyzed)          updateUserInterests()
+    MyNotificationSettings          (Not analyzed)          updateNotifications()
+    MyTermsScreen                   (Not analyzed)          (Display only)
+    MyWithdrawalScreen              (Not analyzed)          deleteAccount()
+    CompletionScreen                (Not analyzed)          (Display only)
+
+
+IMPLEMENTATION ROADMAP:
+======================
+
+    PHASE 1 - INFRASTRUCTURE (Week 1)
+    ────────────────────────────────
+    [1] Create lib/services/api_client.dart
+        - HttpClient with base URL
+        - Request/response logging
+        - Error handling wrapper
+
+    [2] Create lib/constants/api_constants.dart
+        - API_BASE_URL constant
+        - Endpoint paths
+        - Timeout configs
+
+    PHASE 2 - AUTHENTICATION (Week 2)
+    ─────────────────────────────────
+    [3] Add OAuth dependencies to pubspec.yaml
+        - google_sign_in
+        - flutter_naver_login
+        - kakao_flutter_sdk
+
+    [4] Implement TokenManager
+        - Token storage (SharedPreferences)
+        - Token refresh logic
+        - Header injection
+
+    [5] Connect AuthService to OAuth
+        - Real Google sign-in
+        - Real Naver sign-in
+        - Real Kakao sign-in
+
+    PHASE 3 - API INTEGRATION (Week 3-4)
+    ────────────────────────────────────
+    [6] Implement PolicyService methods
+        - searchPolicies() -> GET /api/policies/search
+        - getPolicyDetail() -> GET /api/policies/{id}
+        - getAiSummary() -> POST /api/policies/{id}/ai-summary
+
+    [7] Update HomeScreen
+        - getRecommendedPolicies()
+        - getPopularPolicies()
+        - getUpcomingDeadlines()
+
+    [8] Update ExploreResultsScreen
+        - Real searchPolicies() call with filters
+
+    PHASE 4 - STATE MANAGEMENT (Week 5)
+    ────────────────────────────────────
+    [9] Implement Provider-based state management
+        - UserProvider for auth state
+        - PolicyProvider for policy data
+        - CacheProvider for caching
+
+    PHASE 5 - POLISH (Week 6+)
+    ──────────────────────────
+    [10] Error handling & retry logic
+    [11] Loading/empty/error states
+    [12] Performance optimization
+    [13] Testing & debugging
+
+
+PARAMETER CODE MAPPINGS ALREADY IMPLEMENTED:
+===========================================
+
+    PolicyFilter has all codes for:
+    - Policy Method Codes (0042xxx)      ✓
+    - Marital Status Codes (0055xxx)     ✓
+    - Income Codes (0043xxx)             ✓
+    - Major Codes (0011xxx)              ✓
+    - Employment Codes (0013xxx)         ✓
+    - Education Codes (0049xxx)          ✓
+    - Special Requirement Codes (0014xxx) ✓
+
+    These are ready to be used in API calls via toApiJson() method.
+
+
+BACKEND INTEGRATION CHECKLIST:
+==============================
+
+    READY TO INTEGRATE:
+    ✓ Data models (User, Policy, PolicyFilter, SavedPolicy)
+    ✓ API endpoint specifications documented
+    ✓ Parameter code mappings defined
+    ✓ Service layer structure established
+    ✓ Mock data for UI testing
+    ✓ Required dependencies mostly available
+
+    NOT YET READY:
+    ✗ HTTP client implementation
+    ✗ OAuth integration
+    ✗ Token management
+    ✗ Error handling for API calls
+    ✗ Configuration/constants
+    ✗ API endpoint calls
+
+
+ESTIMATED EFFORT:
+=================
+
+    Infrastructure:         2-3 days
+    OAuth Integration:      3-4 days
+    API Service Methods:    3-4 days
+    State Management:       2-3 days
+    Testing & Polish:       2-3 days
+    ────────────────────────────────
+    TOTAL:                  ~2-3 weeks
+
+================================================================================
