@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../widgets/bottom_navigation_bar.dart';
 import '../models/policy.dart';
+import '../models/policy_filter.dart';
 import '../services/policy_service.dart';
+import 'explore_results_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<String> selectedInterests;
@@ -31,6 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingRecommended = true;
   bool _isLoadingPopular = true;
   bool _isLoadingUpcoming = true;
+  
+  // 배너용 정책 수
+  int recentlyAddedCount = 0;
+  int deadlineImminentCount = 0;
+  int savedPoliciesCount = 0;
 
   @override
   void initState() {
@@ -43,7 +52,32 @@ class _HomeScreenState extends State<HomeScreen> {
       _loadRecommendedPolicies(),
       _loadPopularPolicies(),
       _loadUpcomingPolicies(),
+      _loadPolicyCounts(),
     ]);
+  }
+
+  Future<void> _loadPolicyCounts() async {
+    try {
+      final recently = await _policyService.getRecentlyAddedCount();
+      final deadline = await _policyService.getDeadlineImminentCount();
+
+      // 저장한 정책 수 가져오기 (SharedPreferences에서)
+      final prefs = await SharedPreferences.getInstance();
+      final String? savedData = prefs.getString('saved_policies');
+      int savedCount = 0;
+      if (savedData != null) {
+        final List<dynamic> savedList = json.decode(savedData);
+        savedCount = savedList.length;
+      }
+
+      setState(() {
+        recentlyAddedCount = recently;
+        deadlineImminentCount = deadline;
+        savedPoliciesCount = savedCount;
+      });
+    } catch (e) {
+      print('정책 수 로딩 오류: $e');
+    }
   }
 
   Future<void> _loadRecommendedPolicies() async {
@@ -182,15 +216,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     // 추천 버튼 영역
                     _buildRecommendationButtons(),
 
-                    SizedBox(height: 16),
+                    // 주요 알림 배너 (위치 이동됨) - 있을 때만 간격 추가
+                    if (deadlineImminentPolicy != null) ...[
+                      SizedBox(height: 16),
+                      _buildNotificationBanner(),
+                      SizedBox(height: 16),
+                    ],
+
+                    // 배너가 없으면 간격만 추가
+                    if (deadlineImminentPolicy == null) SizedBox(height: 16),
 
                     // 인기 정책 TOP3
                     _buildPopularPoliciesSection(),
 
                     SizedBox(height: 16),
 
-                    // 주요 알림 배너
-                    _buildNotificationBanner(),
+                    // 새로운 배너 (3칸)
+                    _buildPolicyCountsBanner(),
 
                     SizedBox(height: 16),
 
@@ -523,11 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNotificationBanner() {
-    // D-day 또는 D-1 정책이 없으면 배너 표시 안 함
-    if (deadlineImminentPolicy == null) {
-      return SizedBox.shrink();
-    }
-
+    // 호출하는 곳에서 null 체크를 하므로 여기서는 항상 표시
     final policy = deadlineImminentPolicy!;
     final endDate = DateTime.parse(
       '${policy.bizPrdEndYmd!.substring(0, 4)}-${policy.bizPrdEndYmd!.substring(4, 6)}-${policy.bizPrdEndYmd!.substring(6, 8)}'
@@ -818,6 +856,173 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 새로운 3칸 배너 (새로 추가된 정책, 신청 마감 임박, 저장한 정책)
+  Widget _buildPolicyCountsBanner() {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: Color(0xFF252931),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          // 새로 추가된 정책
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                // 최근 추가 필터 적용된 결과 화면으로 이동
+                final filter = PolicyFilter(
+                  recentlyAdded: true,
+                );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ExploreResultsScreen(
+                      searchQuery: '',
+                      filter: filter,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '새로 추가된 정책',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFBDC4D0),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '${recentlyAddedCount}건',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: -0.9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // 구분선
+          Container(
+            width: 1,
+            height: 40,
+            color: Color(0xFF4B515D),
+          ),
+          
+          // 신청 마감 임박 정책
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                // 마감 임박 필터 적용된 결과 화면으로 이동
+                final filter = PolicyFilter(
+                  deadlineImminent: true,
+                );
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ExploreResultsScreen(
+                      searchQuery: '',
+                      filter: filter,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '신청 마감 임박 정책',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFBDC4D0),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '${deadlineImminentCount}건',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: -0.9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          // 구분선
+          Container(
+            width: 1,
+            height: 40,
+            color: Color(0xFF4B515D),
+          ),
+          
+          // 저장한 정책
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                // 저장 탭으로 이동
+                Navigator.pushNamed(context, '/saved');
+              },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      '저장한 정책',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFBDC4D0),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      '${savedPoliciesCount}건',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        letterSpacing: -0.9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

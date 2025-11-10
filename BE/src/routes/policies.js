@@ -210,7 +210,17 @@ router.get('/search', [
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100')
+    .withMessage('Limit must be between 1 and 100'),
+  query('recentlyAdded')
+    .optional()
+    .isString()
+    .isIn(['true', 'false'])
+    .withMessage('recentlyAdded must be true or false'),
+  query('deadlineImminent')
+    .optional()
+    .isString()
+    .isIn(['true', 'false'])
+    .withMessage('deadlineImminent must be true or false')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -225,14 +235,18 @@ router.get('/search', [
     const {
       query: searchQuery = '',
       page = 1,
-      limit = 20
+      limit = 20,
+      recentlyAdded,
+      deadlineImminent
     } = req.query;
 
     // 검색어를 사용하여 DB에서 정책 검색
     const result = await ontongService.searchPoliciesFromDB({
       page: parseInt(page),
       limit: parseInt(limit),
-      searchText: searchQuery
+      searchText: searchQuery,
+      recentlyAdded: recentlyAdded === 'true',
+      deadlineImminent: deadlineImminent === 'true'
     });
 
     // 로그인한 사용자의 경우 북마크 정보 추가

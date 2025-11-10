@@ -103,7 +103,10 @@ class OntongService {
       specialRequirementCode,
       majorCode,
       incomeCode,
-      region
+      region,
+      recentlyAdded,
+      deadlineImminent,
+      searchText
     } = params;
 
     const offset = (page - 1) * limit;
@@ -116,10 +119,26 @@ class OntongService {
     values.push(2025);
     paramIndex++;
 
-    // 검색어 필터
-    if (searchQuery) {
+    // 최근 추가된 정책 필터 (7일 이내)
+    if (recentlyAdded) {
+      conditions.push(`updated_at >= CURRENT_DATE - INTERVAL '7 days'`);
+    }
+
+    // 마감 임박 정책 필터 (30일 이내 - 프론트엔드에서 7일로 재필터링)
+    // deadline_approaching_policies 뷰 사용
+    if (deadlineImminent) {
+      console.log('📅 Deadline imminent filter activated - using deadline_approaching_policies view');
+      // 30일 이내 정책만 조회 (프론트엔드에서 bizPrdEndYmd 기준으로 7일 필터링)
+      conditions.push(`end_date IS NOT NULL`);
+      conditions.push(`end_date > CURRENT_DATE`);
+      conditions.push(`end_date <= CURRENT_DATE + INTERVAL '30 days'`);
+    }
+
+    // 검색어 필터 (searchQuery 또는 searchText)
+    const searchTerm = searchQuery || searchText;
+    if (searchTerm) {
       conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-      values.push(`%${searchQuery}%`);
+      values.push(`%${searchTerm}%`);
       paramIndex++;
     }
 
@@ -217,6 +236,11 @@ class OntongService {
     values.push(limit, offset);
     const result = await db.query(query, values);
 
+    console.log(`🔍 Search results: ${result.rows.length} policies found (total: ${total})`);
+    if (deadlineImminent) {
+      console.log(`📅 Deadline imminent results: ${result.rows.length} policies within 7 days`);
+    }
+
     return {
       policies: result.rows.map(row => this.transformToFrontendFormat(row)),
       pagination: {
@@ -295,7 +319,24 @@ class OntongService {
       schoolCd: policy.schoolcd || '',            // 학력 코드
       plcyMajorCd: policy.plcymajorcd || '',      // 전공 코드
       earnCndSeCd: policy.earncndsecd || '',      // 소득조건 코드
-      spclRqrmCn: policy.addaplyqlfccndcn || ''   // 특화요건 텍스트
+      spclRqrmCn: policy.addaplyqlfccndcn || '',  // 특화요건 텍스트
+
+      // 정책 상세 정보 추가
+      plcySprtCn: policy.plcysprtcn || policy.content || '',       // 지원내용
+      plcyAplyMthdCn: policy.plcyaplymthdcn || '',                 // 신청방법
+      operInstCdNm: policy.operinstcdnm || '',                     // 운영기관명
+      sprvsnInstCdNm: policy.sprvsninstcdnm || '',                 // 주관기관명
+      rgtrInstCdNm: policy.rgtrinstcdnm || '',                     // 등록기관명
+      sprtTrgtMinAge: policy.sprttrgtminage || null,               // 최소연령
+      sprtTrgtMaxAge: policy.sprttrgtmaxage || null,               // 최대연령
+      zipCd: policy.zipcd || '',                                   // 지역코드
+      sbmsnDcmntCn: policy.sbmsndcmntcn || '',                     // 제출서류
+      refUrlAddr1: policy.refurladdr1 || '',                       // 참고URL1
+      refUrlAddr2: policy.refurladdr2 || '',                       // 참고URL2
+      srngMthdCn: policy.srngmthdcn || '',                         // 선정방법
+      etcMttrCn: policy.etcmttrcn || '',                           // 기타사항
+      operInstPicNm: policy.operinstpicnm || '',                   // 운영기관 담당자명
+      sprvsnInstPicNm: policy.sprvsninstpicnm || ''                // 주관기관 담당자명
     };
   }
 

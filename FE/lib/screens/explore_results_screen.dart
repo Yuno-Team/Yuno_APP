@@ -104,10 +104,22 @@ class _ExploreResultsScreenState extends State<ExploreResultsScreen> {
                 });
               },
               onFilterPressed: () {
+                // 현재 적용된 필터를 전달
+                final currentFilters = <String, dynamic>{};
+                if (widget.filter != null) {
+                  if (widget.filter!.recentlyAdded == true) {
+                    currentFilters['recentlyAdded'] = true;
+                  }
+                  if (widget.filter!.deadlineImminent == true) {
+                    currentFilters['deadlineImminent'] = true;
+                  }
+                }
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ExploreFilterScreen(),
+                    builder: (context) => ExploreFilterScreen(
+                      initialFilters: currentFilters.isEmpty ? null : currentFilters,
+                    ),
                   ),
                 );
               },

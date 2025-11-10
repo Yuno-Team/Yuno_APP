@@ -7,7 +7,11 @@ SELECT
   target_education, tags, image_url, status, view_count,
   popularity_score, cached_at, updated_at,
   mclsfnm, plcypvsnmthdcd, mrgsttscd, jobcd, schoolcd,
-  plcymajorcd, earncndsecd, addaplyqlfccndcn
+  plcymajorcd, earncndsecd, addaplyqlfccndcn,
+  plcysprtcn, plcyaplymthdcn, operinstcdnm, sprvsninstcdnm,
+  rgtrinstcdnm, sprttrgtminage, sprttrgtmaxage, zipcd,
+  sbmsndcmntcn, refurladdr1, refurladdr2, srngmthdcn,
+  etcmttrcn, operinstpicnm, sprvsninstpicnm
 FROM policies
 WHERE status = 'active'
   AND (end_date IS NULL OR end_date > CURRENT_DATE)
@@ -23,6 +27,10 @@ SELECT
   popularity_score, cached_at, updated_at,
   mclsfnm, plcypvsnmthdcd, mrgsttscd, jobcd, schoolcd,
   plcymajorcd, earncndsecd, addaplyqlfccndcn,
+  plcysprtcn, plcyaplymthdcn, operinstcdnm, sprvsninstcdnm,
+  rgtrinstcdnm, sprttrgtminage, sprttrgtmaxage, zipcd,
+  sbmsndcmntcn, refurladdr1, refurladdr2, srngmthdcn,
+  etcmttrcn, operinstpicnm, sprvsninstpicnm,
   (end_date - CURRENT_DATE) as days_until_deadline
 FROM policies
 WHERE status = 'active'

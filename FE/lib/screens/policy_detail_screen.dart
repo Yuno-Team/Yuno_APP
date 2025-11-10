@@ -495,7 +495,7 @@ class _PolicyDetailScreenState extends State<PolicyDetailScreen>
       ),
       bottomSheet: Container(
         color: Color(0xFF111317),
-        padding: EdgeInsets.all(10),
+        padding: EdgeInsets.only(left: 10, right: 10, top: 10, bottom: 24),
         child: Container(
           width: double.infinity,
           height: 56,
@@ -597,11 +597,13 @@ class _PolicyDetailScreenState extends State<PolicyDetailScreen>
   }
 
   String _getRegionDetails() {
-    if (_policy?.zipCd != null && _policy!.zipCd!.isNotEmpty) {
-      return _policy!.zipCd!;
-    }
+    // 지역명을 먼저 확인 (사람이 읽을 수 있는 형태)
     if (_policy?.rgtrupInstCdNm != null && _policy!.rgtrupInstCdNm.isNotEmpty) {
       return _policy!.rgtrupInstCdNm;
+    }
+    // 지역코드는 백업 옵션 (숫자 코드일 경우)
+    if (_policy?.zipCd != null && _policy!.zipCd!.isNotEmpty) {
+      return _policy!.zipCd!;
     }
     return '전국';
   }

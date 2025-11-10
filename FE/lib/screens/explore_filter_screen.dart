@@ -6,33 +6,43 @@ import '../models/policy_filter.dart';
 import 'explore_results_screen.dart';
 
 class ExploreFilterScreen extends StatefulWidget {
+  final Map<String, dynamic>? initialFilters;
+
+  ExploreFilterScreen({this.initialFilters});
+
   @override
   _ExploreFilterScreenState createState() => _ExploreFilterScreenState();
 }
 
 class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
-  String selectedMainCategory = '일자리';
-  String selectedSubCategory = '취업';
-  String selectedPolicyMethod = '프로그램';
-  String selectedMaritalStatus = '미혼';
-  String selectedEmploymentStatus = '자영업자';
-  String selectedEducationLevel = '고졸 미만';
-  String selectedSpecialRequirement = '중소기업';
-  String selectedMajorRequirement = '인문계열';
+  // 기간 조건
+  bool isRecentlyAdded = false;
+  bool isDeadlineImminent = false;
+  
+  // 검색 조건 (기본값을 제한없음/무관으로 설정)
+  String selectedMainCategory = '전체';
+  String selectedSubCategory = '전체';
+  String selectedPolicyMethod = '기타';
+  String selectedMaritalStatus = '제한없음';
+  String selectedEmploymentStatus = '제한없음';
+  String selectedEducationLevel = '제한없음';
+  String selectedSpecialRequirement = '제한없음';
+  String selectedMajorRequirement = '제한없음';
   String selectedIncomeRequirement = '무관';
   String selectedRegion = '지역 선택';
   bool _isMyConditionsHovered = false;
 
-  // 정책 대분류 (실제 데이터)
-  List<String> mainCategories = ['일자리', '주거', '교육', '복지문화', '참여권리'];
-  
-  // 정책 중분류 매핑
+  // 정책 대분류 (전체 옵션 포함)
+  List<String> mainCategories = ['전체', '일자리', '주거', '교육', '복지문화', '참여권리'];
+
+  // 정책 중분류 매핑 (전체 옵션 포함)
   Map<String, List<String>> subCategoriesMap = {
-    '일자리': ['취업', '재직자', '창업'],
-    '주거': ['주택 및 거주지', '기숙사', '전월세 및 주거급여 지원'],
-    '교육': ['미래역량강화', '교육비지원', '온라인교육'],
-    '복지문화': ['취약계층 및 금융지원', '건강', '예술인지원', '문화활동'],
-    '참여권리': ['청년참여', '정책인프라구축', '청년국제교류', '권익보호'],
+    '전체': ['전체'],
+    '일자리': ['전체', '취업', '재직자', '창업'],
+    '주거': ['전체', '주택 및 거주지', '기숙사', '전월세 및 주거급여 지원'],
+    '교육': ['전체', '미래역량강화', '교육비지원', '온라인교육'],
+    '복지문화': ['전체', '취약계층 및 금융지원', '건강', '예술인지원', '문화활동'],
+    '참여권리': ['전체', '청년참여', '정책인프라구축', '청년국제교류', '권익보호'],
   };
   
   // 정책 제공 방법 (실제 데이터)
@@ -58,6 +68,20 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
 
   // 현재 선택된 대분류에 따른 중분류 목록
   List<String> get currentSubCategories => subCategoriesMap[selectedMainCategory] ?? [];
+
+  @override
+  void initState() {
+    super.initState();
+    // 초기 필터 적용
+    if (widget.initialFilters != null) {
+      if (widget.initialFilters!['recentlyAdded'] == true) {
+        isRecentlyAdded = true;
+      }
+      if (widget.initialFilters!['deadlineImminent'] == true) {
+        isDeadlineImminent = true;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -145,88 +169,16 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
             
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildFilterSection('카테고리', mainCategories, selectedMainCategory, (value) {
-                      setState(() {
-                        selectedMainCategory = value;
-                        // 대분류 변경 시 중분류를 첫 번째 항목으로 초기화
-                        if (currentSubCategories.isNotEmpty) {
-                          selectedSubCategory = currentSubCategories.first;
-                        }
-                      });
-                    }),
+                    // 기간 조건 섹션
+                    _buildPeriodConditionSection(),
                     
                     SizedBox(height: 24),
                     
-                    if (currentSubCategories.isNotEmpty)
-                      _buildFilterSection('', currentSubCategories, selectedSubCategory, (value) {
-                        setState(() {
-                          selectedSubCategory = value;
-                        });
-                      }, showTitle: false),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('정책 제공 방법', policyMethods, selectedPolicyMethod, (value) {
-                      setState(() {
-                        selectedPolicyMethod = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('결혼 여부', maritalStatuses, selectedMaritalStatus, (value) {
-                      setState(() {
-                        selectedMaritalStatus = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('취업 요건', employmentStatuses, selectedEmploymentStatus, (value) {
-                      setState(() {
-                        selectedEmploymentStatus = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('학력 요건', educationLevels, selectedEducationLevel, (value) {
-                      setState(() {
-                        selectedEducationLevel = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('정책 특화 요건', specialRequirements, selectedSpecialRequirement, (value) {
-                      setState(() {
-                        selectedSpecialRequirement = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('전공 요건', majorRequirements, selectedMajorRequirement, (value) {
-                      setState(() {
-                        selectedMajorRequirement = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildFilterSection('소득 요건', incomeRequirements, selectedIncomeRequirement, (value) {
-                      setState(() {
-                        selectedIncomeRequirement = value;
-                      });
-                    }),
-                    
-                    SizedBox(height: 24),
-                    
-                    _buildRegionSelector(),
+                    // 검색 조건 섹션
+                    _buildSearchConditionSection(),
                     
                     SizedBox(height: 40),
                   ],
@@ -246,14 +198,19 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
                       onPressed: () {
                         // 초기화 기능
                         setState(() {
-                          selectedMainCategory = '일자리';
-                          selectedSubCategory = '취업';
-                          selectedPolicyMethod = '프로그램';
-                          selectedMaritalStatus = '미혼';
-                          selectedEmploymentStatus = '자영업자';
-                          selectedEducationLevel = '고졸 미만';
-                          selectedSpecialRequirement = '중소기업';
-                          selectedMajorRequirement = '인문계열';
+                          // 기간 조건 초기화
+                          isRecentlyAdded = false;
+                          isDeadlineImminent = false;
+
+                          // 검색 조건 초기화 (기본값으로 설정)
+                          selectedMainCategory = '전체';
+                          selectedSubCategory = '전체';
+                          selectedPolicyMethod = '기타';
+                          selectedMaritalStatus = '제한없음';
+                          selectedEmploymentStatus = '제한없음';
+                          selectedEducationLevel = '제한없음';
+                          selectedSpecialRequirement = '제한없음';
+                          selectedMajorRequirement = '제한없음';
                           selectedIncomeRequirement = '무관';
                           selectedRegion = '지역 선택';
                         });
@@ -295,13 +252,15 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
                           majorRequirement: selectedMajorRequirement,
                           incomeRequirement: selectedIncomeRequirement,
                           region: selectedRegion == '지역 선택' ? null : selectedRegion,
+                          recentlyAdded: isRecentlyAdded ? true : null,
+                          deadlineImminent: isDeadlineImminent ? true : null,
                         );
                         
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ExploreResultsScreen(
-                              searchQuery: '필터 검색',
+                              searchQuery: '',
                               filter: filter,
                             ),
                           ),
@@ -528,5 +487,227 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
     } catch (e) {
       print('내 조건 불러오기 오류: $e');
     }
+  }
+
+  // 기간 조건 섹션
+  Widget _buildPeriodConditionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 섹션 제목
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Color(0xFF4B515D),
+                width: 1,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              '기간 조건',
+              style: TextStyle(
+                fontFamily: 'Pretendard',
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFBDC4D0),
+                letterSpacing: -1.0,
+              ),
+            ),
+          ),
+        ),
+        
+        // 버튼들
+        Container(
+          padding: EdgeInsets.only(left: 16, right: 16, top: 20, bottom: 10),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isRecentlyAdded = !isRecentlyAdded;
+                  });
+                },
+                child: Container(
+                  height: 44,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isRecentlyAdded ? Color(0xFF193CB8) : Color(0xFF252931),
+                    borderRadius: BorderRadius.circular(56),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '최근 추가',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: isRecentlyAdded ? 16 : 14,
+                        fontWeight: isRecentlyAdded ? FontWeight.w500 : FontWeight.w600,
+                        color: isRecentlyAdded ? Color(0xFFC3E1FF) : Color(0xFF949CAD),
+                        letterSpacing: isRecentlyAdded ? -0.8 : -0.266,
+                        height: 24/16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 9),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isDeadlineImminent = !isDeadlineImminent;
+                  });
+                },
+                child: Container(
+                  height: 44,
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isDeadlineImminent ? Color(0xFF193CB8) : Color(0xFF252931),
+                    borderRadius: BorderRadius.circular(56),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '신청 마감 임박',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: isDeadlineImminent ? 16 : 14,
+                        fontWeight: isDeadlineImminent ? FontWeight.w500 : FontWeight.w600,
+                        color: isDeadlineImminent ? Color(0xFFC3E1FF) : Color(0xFF949CAD),
+                        letterSpacing: isDeadlineImminent ? -0.8 : -0.266,
+                        height: 24/16,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 검색 조건 섹션
+  Widget _buildSearchConditionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 섹션 제목
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Color(0xFF4B515D),
+                width: 1,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              '검색 조건',
+              style: TextStyle(
+                fontFamily: 'Pretendard',
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFBDC4D0),
+                letterSpacing: -1.0,
+              ),
+            ),
+          ),
+        ),
+        
+        // 필터들
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFilterSection('카테고리', mainCategories, selectedMainCategory, (value) {
+                setState(() {
+                  selectedMainCategory = value;
+                  // 대분류 변경 시 중분류를 첫 번째 항목으로 초기화
+                  if (currentSubCategories.isNotEmpty) {
+                    selectedSubCategory = currentSubCategories.first;
+                  }
+                });
+              }),
+              
+              SizedBox(height: 24),
+
+              if (selectedMainCategory != '전체' && currentSubCategories.isNotEmpty)
+                _buildFilterSection('', currentSubCategories, selectedSubCategory, (value) {
+                  setState(() {
+                    selectedSubCategory = value;
+                  });
+                }, showTitle: false),
+
+              if (selectedMainCategory != '전체' && currentSubCategories.isNotEmpty) SizedBox(height: 24),
+              
+              _buildFilterSection('정책 제공 방법', policyMethods, selectedPolicyMethod, (value) {
+                setState(() {
+                  selectedPolicyMethod = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildFilterSection('결혼 여부', maritalStatuses, selectedMaritalStatus, (value) {
+                setState(() {
+                  selectedMaritalStatus = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildFilterSection('취업 요건', employmentStatuses, selectedEmploymentStatus, (value) {
+                setState(() {
+                  selectedEmploymentStatus = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildFilterSection('학력 요건', educationLevels, selectedEducationLevel, (value) {
+                setState(() {
+                  selectedEducationLevel = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildFilterSection('정책 특화 요건', specialRequirements, selectedSpecialRequirement, (value) {
+                setState(() {
+                  selectedSpecialRequirement = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildFilterSection('전공 요건', majorRequirements, selectedMajorRequirement, (value) {
+                setState(() {
+                  selectedMajorRequirement = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildFilterSection('소득 요건', incomeRequirements, selectedIncomeRequirement, (value) {
+                setState(() {
+                  selectedIncomeRequirement = value;
+                });
+              }),
+              
+              SizedBox(height: 24),
+              
+              _buildRegionSelector(),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

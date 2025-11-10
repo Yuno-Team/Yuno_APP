@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../widgets/bottom_navigation_bar.dart';
 import '../models/saved_policy.dart';
+import 'policy_detail_screen.dart';
 
 class SavedPoliciesScreen extends StatefulWidget {
   @override
@@ -569,20 +570,35 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(horizontal: 2),
                   child: Column(
-                    children: policiesForDay.take(2).map((policy) => 
-                      Container(
-                        margin: EdgeInsets.only(bottom: 1),
-                        child: Text(
-                          policy.title,
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFFE1E5EC),
-                            letterSpacing: -0.19,
+                    children: policiesForDay.take(2).map((policy) =>
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PolicyDetailScreen(policyId: policy.id),
+                              ),
+                            );
+                            // 상세보기에서 돌아왔을 때 데이터 다시 로드
+                            _loadSavedPolicies();
+                          },
+                          child: Container(
+                            margin: EdgeInsets.only(bottom: 1),
+                            child: Text(
+                              policy.title,
+                              style: TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFFE1E5EC),
+                                letterSpacing: -0.19,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ).toList(),
@@ -681,37 +697,53 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
             ),
             SizedBox(height: 12),
             Column(
-              children: policies.map((policy) => 
-                Container(
-                  margin: EdgeInsets.only(bottom: policies.indexOf(policy) == policies.length - 1 ? 0 : 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          policy.title,
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            letterSpacing: -0.8,
-                            height: 18/16,
+              children: policies.map((policy) =>
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PolicyDetailScreen(policyId: policy.id),
+                        ),
+                      );
+                      // 상세보기에서 돌아왔을 때 데이터 다시 로드
+                      _loadSavedPolicies();
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(bottom: policies.indexOf(policy) == policies.length - 1 ? 0 : 4),
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              policy.title,
+                              style: TextStyle(
+                                fontFamily: 'Pretendard',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                letterSpacing: -0.8,
+                                height: 18/16,
+                              ),
+                            ),
                           ),
-                        ),
+                          Text(
+                            policy.deadlineDisplay,
+                            style: TextStyle(
+                              fontFamily: 'Pretendard',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF949CAD),
+                              letterSpacing: -0.6,
+                              height: 14/12,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        policy.deadlineDisplay,
-                        style: TextStyle(
-                          fontFamily: 'Pretendard',
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF949CAD),
-                          letterSpacing: -0.6,
-                          height: 14/12,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ).toList(),

@@ -9,6 +9,8 @@ class PolicyFilter {
   final String? majorRequirement; // 전공요건
   final String? incomeRequirement; // 소득조건
   final String? region; // 지역
+  final bool? recentlyAdded; // 최근 추가 (7일 이내)
+  final bool? deadlineImminent; // 신청 마감 임박 (7일 이내)
 
   PolicyFilter({
     this.mainCategory,
@@ -21,6 +23,8 @@ class PolicyFilter {
     this.majorRequirement,
     this.incomeRequirement,
     this.region,
+    this.recentlyAdded,
+    this.deadlineImminent,
   });
 
   Map<String, dynamic> toJson() {
@@ -56,6 +60,12 @@ class PolicyFilter {
     if (region != null && region != '지역 선택' && region != '전체') {
       json['region'] = region;
     }
+    if (recentlyAdded != null) {
+      json['recentlyAdded'] = recentlyAdded;
+    }
+    if (deadlineImminent != null) {
+      json['deadlineImminent'] = deadlineImminent;
+    }
     
     return json;
   }
@@ -72,6 +82,8 @@ class PolicyFilter {
       majorRequirement: json['majorRequirement'],
       incomeRequirement: json['incomeRequirement'],
       region: json['region'],
+      recentlyAdded: json['recentlyAdded'],
+      deadlineImminent: json['deadlineImminent'],
     );
   }
 
@@ -86,6 +98,8 @@ class PolicyFilter {
     String? majorRequirement,
     String? incomeRequirement,
     String? region,
+    bool? recentlyAdded,
+    bool? deadlineImminent,
   }) {
     return PolicyFilter(
       mainCategory: mainCategory ?? this.mainCategory,
@@ -98,6 +112,8 @@ class PolicyFilter {
       majorRequirement: majorRequirement ?? this.majorRequirement,
       incomeRequirement: incomeRequirement ?? this.incomeRequirement,
       region: region ?? this.region,
+      recentlyAdded: recentlyAdded ?? this.recentlyAdded,
+      deadlineImminent: deadlineImminent ?? this.deadlineImminent,
     );
   }
 
@@ -184,34 +200,51 @@ class PolicyFilter {
   // 백엔드 API용 파라미터 코드가 포함된 JSON 생성
   Map<String, dynamic> toApiJson() {
     Map<String, dynamic> json = {};
-    
-    if (policyMethod != null && policyMethodCodes.containsKey(policyMethod)) {
+
+    // 정책 제공 방법 (기타는 전달하지 않음)
+    if (policyMethod != null && policyMethod != '기타' && policyMethodCodes.containsKey(policyMethod)) {
       json['policyMethodCode'] = policyMethodCodes[policyMethod];
     }
-    if (maritalStatus != null && maritalStatusCodes.containsKey(maritalStatus)) {
+
+    // 결혼 상태 (제한없음은 전달하지 않음)
+    if (maritalStatus != null && maritalStatus != '제한없음' && maritalStatusCodes.containsKey(maritalStatus)) {
       json['maritalStatusCode'] = maritalStatusCodes[maritalStatus];
     }
-    if (incomeRequirement != null && incomeCodes.containsKey(incomeRequirement)) {
+
+    // 소득 조건 (무관과 기타는 전달하지 않음)
+    if (incomeRequirement != null && incomeRequirement != '무관' && incomeRequirement != '기타' && incomeCodes.containsKey(incomeRequirement)) {
       json['incomeCode'] = incomeCodes[incomeRequirement];
     }
-    if (majorRequirement != null && majorCodes.containsKey(majorRequirement)) {
+
+    // 전공 요건 (제한없음과 기타는 전달하지 않음)
+    if (majorRequirement != null && majorRequirement != '제한없음' && majorRequirement != '기타' && majorCodes.containsKey(majorRequirement)) {
       json['majorCode'] = majorCodes[majorRequirement];
     }
-    if (employmentStatus != null && employmentCodes.containsKey(employmentStatus)) {
+
+    // 취업 요건 (제한없음과 기타는 전달하지 않음)
+    if (employmentStatus != null && employmentStatus != '제한없음' && employmentStatus != '기타' && employmentCodes.containsKey(employmentStatus)) {
       json['employmentCode'] = employmentCodes[employmentStatus];
     }
-    if (educationLevel != null && educationCodes.containsKey(educationLevel)) {
+
+    // 학력 요건 (제한없음과 기타는 전달하지 않음)
+    if (educationLevel != null && educationLevel != '제한없음' && educationLevel != '기타' && educationCodes.containsKey(educationLevel)) {
       json['educationCode'] = educationCodes[educationLevel];
     }
-    if (specialRequirement != null && specialRequirementCodes.containsKey(specialRequirement)) {
+
+    // 특화 요건 (제한없음과 기타는 전달하지 않음)
+    if (specialRequirement != null && specialRequirement != '제한없음' && specialRequirement != '기타' && specialRequirementCodes.containsKey(specialRequirement)) {
       json['specialRequirementCode'] = specialRequirementCodes[specialRequirement];
     }
-    
-    // 카테고리는 한글명으로 전달 (백엔드에서 매핑)
-    if (mainCategory != null) json['mainCategory'] = mainCategory;
-    if (subCategory != null) json['subCategory'] = subCategory;
+
+    // 카테고리는 한글명으로 전달 (백엔드에서 매핑) - "전체"는 제외
+    if (mainCategory != null && mainCategory != '전체') json['mainCategory'] = mainCategory;
+    if (subCategory != null && subCategory != '전체') json['subCategory'] = subCategory;
     if (region != null && region != '지역 선택') json['region'] = region;
-    
+
+    // 기간 조건
+    if (recentlyAdded == true) json['recentlyAdded'] = true;
+    if (deadlineImminent == true) json['deadlineImminent'] = true;
+
     return json;
   }
 }
