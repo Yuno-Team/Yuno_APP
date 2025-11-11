@@ -46,11 +46,14 @@ class _MyInterestsEditScreenState extends State<MyInterestsEditScreen> {
 
       if (interests != null && interests.isNotEmpty) {
         setState(() {
-          selectedSubCategories = List.from(interests);
+          // 대분류 이름을 제거하고 중분류만 저장
+          selectedSubCategories = interests.where((interest) =>
+            !mainCategories.contains(interest)
+          ).toList();
 
           // 중분류에서 대분류 역추적
           Set<String> mainCats = {};
-          for (String interest in interests) {
+          for (String interest in selectedSubCategories) {
             for (String mainCategory in mainCategories) {
               if (subCategoriesMap[mainCategory]?.contains(interest) ?? false) {
                 mainCats.add(mainCategory);
@@ -71,8 +74,14 @@ class _MyInterestsEditScreenState extends State<MyInterestsEditScreen> {
 
   Future<void> _saveInterests() async {
     try {
+      // 대분류 이름을 제거하고 중분류만 저장
+      final filteredSubCategories = selectedSubCategories.where((sub) =>
+        !mainCategories.contains(sub)
+      ).toList();
+
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('user_interests', selectedSubCategories);
+      await prefs.setStringList('user_interests', filteredSubCategories);
+
       Navigator.pop(context);
     } catch (e) {
       print('관심분야 저장 오류: $e');

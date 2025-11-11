@@ -33,11 +33,16 @@ class _MyScreenState extends State<MyScreen> {
         // 생년월일에서 나이 계산 (YYMMDD 형식)
         int calculatedAge = 24; // 기본값
         if (profileData['birthDate'] != null && profileData['birthDate'].length >= 6) {
-          String birthDateStr = profileData['birthDate'];
-          int yy = int.parse(birthDateStr.substring(0, 2));
-          int fullYear = yy >= 0 && yy <= 25 ? 2000 + yy : 1900 + yy;
-          int currentYear = DateTime.now().year;
-          calculatedAge = currentYear - fullYear;
+          try {
+            String birthDateStr = profileData['birthDate'];
+            int yy = int.parse(birthDateStr.substring(0, 2));
+            int fullYear = yy >= 0 && yy <= 25 ? 2000 + yy : 1900 + yy;
+            int currentYear = DateTime.now().year;
+            calculatedAge = currentYear - fullYear;
+          } catch (e) {
+            print('생년월일 파싱 오류: $e');
+            // 오류 발생 시 기본값 사용
+          }
         }
 
         setState(() {
@@ -262,11 +267,12 @@ class _MyScreenState extends State<MyScreen> {
                             ),
                             child: Column(
                               children: [
-                                _buildMenuItem('프로필 수정', () {
-                                  Navigator.pushNamed(context, '/my_profile_edit');
+                                _buildMenuItem('프로필 수정', () async {
+                                  await Navigator.pushNamed(context, '/my_profile_edit');
+                                  _loadUserProfile(); // 프로필 편집 후 다시 로드
                                 }),
-                                _buildMenuItem('관심분야 수정', () {
-                                  Navigator.pushNamed(context, '/my_interests_edit');
+                                _buildMenuItem('관심분야 수정', () async {
+                                  await Navigator.pushNamed(context, '/my_interests_edit');
                                 }),
                                 _buildMenuItem('알림 설정', () {
                                   Navigator.pushNamed(context, '/my_notification_settings');

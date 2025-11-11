@@ -318,7 +318,7 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
 
         // 정책 리스트
         Expanded(
-          child: _getGroupedPolicies().isEmpty
+          child: _getFilteredPolicies().isEmpty
               ? Center(
                   child: Text(
                     '이번 달에 저장된 정책이 없습니다',
@@ -332,10 +332,10 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
                 )
               : ListView.builder(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  itemCount: _getGroupedPolicies().length,
+                  itemCount: _getFilteredPolicies().length,
                   itemBuilder: (context, index) {
-                    final group = _getGroupedPolicies()[index];
-                    return _buildPolicyGroup(group);
+                    final policy = _getFilteredPolicies()[index];
+                    return _buildPolicyCard(policy);
                   },
                 ),
         ),
@@ -612,28 +612,15 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
     );
   }
 
-  List<List<SavedPolicy>> _getGroupedPolicies() {
-    Map<String, List<SavedPolicy>> grouped = {};
-    
-    for (var policy in savedPolicies) {
-      if (policy.deadline.year == currentMonth.year && 
-          policy.deadline.month == currentMonth.month) {
-        String key = '${policy.deadline.day}일 ${policy.weekday}';
-        if (!grouped.containsKey(key)) {
-          grouped[key] = [];
-        }
-        grouped[key]!.add(policy);
-      }
-    }
-    
-    return grouped.values.toList();
+  List<SavedPolicy> _getFilteredPolicies() {
+    return savedPolicies.where((policy) {
+      return policy.deadline.year == currentMonth.year &&
+             policy.deadline.month == currentMonth.month;
+    }).toList();
   }
 
-  Widget _buildPolicyGroup(List<SavedPolicy> policies) {
-    if (policies.isEmpty) return Container();
-    
-    final firstPolicy = policies.first;
-    final isToday = firstPolicy.isToday;
+  Widget _buildPolicyCard(SavedPolicy policy) {
+    final isToday = policy.isToday;
     
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -650,7 +637,7 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
             Row(
               children: [
                 Text(
-                  firstPolicy.formattedDate,
+                  policy.formattedDate,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: 14,
@@ -662,7 +649,7 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
                 ),
                 SizedBox(width: 4),
                 Text(
-                  firstPolicy.weekday,
+                  policy.weekday,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: 14,
@@ -696,57 +683,49 @@ class _SavedPoliciesScreenState extends State<SavedPoliciesScreen> {
               ],
             ),
             SizedBox(height: 12),
-            Column(
-              children: policies.map((policy) =>
-                MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PolicyDetailScreen(policyId: policy.id),
+            MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PolicyDetailScreen(policyId: policy.id),
+                    ),
+                  );
+                  // 상세보기에서 돌아왔을 때 데이터 다시 로드
+                  _loadSavedPolicies();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        policy.title,
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: -0.8,
+                          height: 18/16,
                         ),
-                      );
-                      // 상세보기에서 돌아왔을 때 데이터 다시 로드
-                      _loadSavedPolicies();
-                    },
-                    child: Container(
-                      margin: EdgeInsets.only(bottom: policies.indexOf(policy) == policies.length - 1 ? 0 : 4),
-                      padding: EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              policy.title,
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                                letterSpacing: -0.8,
-                                height: 18/16,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            policy.deadlineDisplay,
-                            style: TextStyle(
-                              fontFamily: 'Pretendard',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF949CAD),
-                              letterSpacing: -0.6,
-                              height: 14/12,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
-                  ),
+                    Text(
+                      policy.deadlineDisplay,
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF949CAD),
+                        letterSpacing: -0.6,
+                        height: 14/12,
+                      ),
+                    ),
+                  ],
                 ),
-              ).toList(),
+              ),
             ),
           ],
         ),

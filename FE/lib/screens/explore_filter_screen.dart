@@ -18,10 +18,10 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
   // 기간 조건
   bool isRecentlyAdded = false;
   bool isDeadlineImminent = false;
-  
+
   // 검색 조건 (기본값을 제한없음/무관으로 설정)
-  String selectedMainCategory = '전체';
-  String selectedSubCategory = '전체';
+  List<String> selectedMainCategories = []; // 다중 선택으로 변경
+  List<String> selectedSubCategories = []; // 다중 선택으로 변경
   String selectedPolicyMethod = '기타';
   String selectedMaritalStatus = '제한없음';
   String selectedEmploymentStatus = '제한없음';
@@ -66,8 +66,17 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
   // 소득 조건
   List<String> incomeRequirements = ['무관', '연소득', '기타'];
 
-  // 현재 선택된 대분류에 따른 중분류 목록
-  List<String> get currentSubCategories => subCategoriesMap[selectedMainCategory] ?? [];
+  // 현재 선택된 대분류들에 따른 중분류 목록
+  List<String> get currentSubCategories {
+    List<String> allSubCategories = [];
+    for (String mainCategory in selectedMainCategories) {
+      if (mainCategory != '전체') {
+        allSubCategories.addAll(subCategoriesMap[mainCategory] ?? []);
+      }
+    }
+    // '전체' 제거
+    return allSubCategories.where((sub) => sub != '전체').toList();
+  }
 
   @override
   void initState() {
@@ -203,8 +212,8 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
                           isDeadlineImminent = false;
 
                           // 검색 조건 초기화 (기본값으로 설정)
-                          selectedMainCategory = '전체';
-                          selectedSubCategory = '전체';
+                          selectedMainCategories = [];
+                          selectedSubCategories = [];
                           selectedPolicyMethod = '기타';
                           selectedMaritalStatus = '제한없음';
                           selectedEmploymentStatus = '제한없음';
@@ -241,9 +250,10 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         // 조회 기능 - 필터 데이터를 결과 화면으로 전달
+                        // 다중 선택된 카테고리에서 첫 번째 선택하거나 null
                         final filter = PolicyFilter(
-                          mainCategory: selectedMainCategory,
-                          subCategory: selectedSubCategory,
+                          mainCategory: selectedMainCategories.isNotEmpty ? selectedMainCategories.first : null,
+                          subCategory: selectedSubCategories.isNotEmpty ? selectedSubCategories.first : null,
                           policyMethod: selectedPolicyMethod,
                           maritalStatus: selectedMaritalStatus,
                           employmentStatus: selectedEmploymentStatus,
@@ -255,7 +265,7 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
                           recentlyAdded: isRecentlyAdded ? true : null,
                           deadlineImminent: isDeadlineImminent ? true : null,
                         );
-                        
+
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
@@ -294,7 +304,13 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
     );
   }
 
-  Widget _buildFilterSection(String title, List<String> options, String selectedValue, Function(String) onChanged, {bool showTitle = true}) {
+  Widget _buildFilterSection(
+    String title,
+    List<String> options,
+    String selectedValue,
+    Function(String) onChanged,
+    {bool showTitle = true, bool multiSelect = false, List<String>? selectedValues}
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -319,8 +335,10 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
             children: options.asMap().entries.map((entry) {
               final index = entry.key;
               final option = entry.value;
-              final isSelected = option == selectedValue;
-              
+              final isSelected = multiSelect
+                ? (selectedValues?.contains(option) ?? false)
+                : (option == selectedValue);
+
               return Container(
                 margin: EdgeInsets.only(
                   right: index < options.length - 1 ? 9 : 0,
@@ -444,8 +462,6 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
       String loadedRegion = '지역 선택';
       String loadedEducation = '제한없음';
       String loadedMajor = '제한없음';
-      String loadedMainCategory = '일자리';
-      String loadedSubCategory = '취업';
 
       // 프로필 데이터에서 불러오기
       if (profileJson != null) {
@@ -455,24 +471,39 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
         loadedMajor = profileData['major'] ?? '제한없음';
       }
 
-      // 관심분야에서 불러오기
-      if (interests != null && interests.isNotEmpty) {
-        // 첫 번째 관심분야를 사용하여 대분류와 중분류 찾기
-        String firstInterest = interests.first;
+      // 관심분야에서 불러오기 (모든 관심분야 적용)
+      List<String> loadedMainCategories = [];
+      List<String> loadedSubCategories = [];
 
-        // 중분류에서 대분류 역추적
-        for (String mainCategory in mainCategories) {
-          if (subCategoriesMap[mainCategory]?.contains(firstInterest) ?? false) {
-            loadedMainCategory = mainCategory;
-            loadedSubCategory = firstInterest;
-            break;
+      if (interests != null && interests.isNotEmpty) {
+        for (String interest in interests) {
+          // 대분류 이름인지 확인
+          if (mainCategories.contains(interest) && interest != '전체') {
+            if (!loadedMainCategories.contains(interest)) {
+              loadedMainCategories.add(interest);
+            }
+          } else {
+            // 중분류에서 대분류 역추적
+            for (String mainCategory in mainCategories) {
+              if (mainCategory == '전체') continue;
+
+              if (subCategoriesMap[mainCategory]?.contains(interest) ?? false) {
+                if (!loadedMainCategories.contains(mainCategory)) {
+                  loadedMainCategories.add(mainCategory);
+                }
+                if (!loadedSubCategories.contains(interest)) {
+                  loadedSubCategories.add(interest);
+                }
+                break;
+              }
+            }
           }
         }
       }
 
       setState(() {
-        selectedMainCategory = loadedMainCategory;
-        selectedSubCategory = loadedSubCategory;
+        selectedMainCategories = loadedMainCategories;
+        selectedSubCategories = loadedSubCategories;
         selectedEducationLevel = loadedEducation;
         selectedMajorRequirement = loadedMajor;
         selectedRegion = loadedRegion;
@@ -626,26 +657,86 @@ class _ExploreFilterScreenState extends State<ExploreFilterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildFilterSection('카테고리', mainCategories, selectedMainCategory, (value) {
+              // 대분류 가로 스크롤
+              _buildFilterSection('카테고리', mainCategories.where((cat) => cat != '전체').toList(), '', (value) {
                 setState(() {
-                  selectedMainCategory = value;
-                  // 대분류 변경 시 중분류를 첫 번째 항목으로 초기화
-                  if (currentSubCategories.isNotEmpty) {
-                    selectedSubCategory = currentSubCategories.first;
+                  final isSelected = selectedMainCategories.contains(value);
+                  if (isSelected) {
+                    selectedMainCategories.remove(value);
+                    // 대분류 해제 시 해당 중분류들도 제거
+                    List<String> categoriesToRemove = (subCategoriesMap[value] ?? [])
+                      .where((sub) => sub != '전체').toList();
+                    selectedSubCategories.removeWhere((sub) => categoriesToRemove.contains(sub));
+                  } else {
+                    selectedMainCategories.add(value);
                   }
                 });
-              }),
-              
+              }, multiSelect: true, selectedValues: selectedMainCategories),
+
               SizedBox(height: 24),
 
-              if (selectedMainCategory != '전체' && currentSubCategories.isNotEmpty)
-                _buildFilterSection('', currentSubCategories, selectedSubCategory, (value) {
-                  setState(() {
-                    selectedSubCategory = value;
-                  });
-                }, showTitle: false),
+              // 선택된 각 대분류의 중분류를 한 줄씩 표시 (헤더 없이)
+              ...selectedMainCategories.map((mainCategory) {
+                final subCategories = (subCategoriesMap[mainCategory] ?? [])
+                  .where((sub) => sub != '전체').toList();
 
-              if (selectedMainCategory != '전체' && currentSubCategories.isNotEmpty) SizedBox(height: 24),
+                if (subCategories.isEmpty) return SizedBox.shrink();
+
+                return Column(
+                  children: [
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: BouncingScrollPhysics(),
+                      child: Row(
+                        children: subCategories.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final subCategory = entry.value;
+                          final isSelected = selectedSubCategories.contains(subCategory);
+
+                          return Container(
+                            margin: EdgeInsets.only(
+                              right: index < subCategories.length - 1 ? 9 : 0,
+                            ),
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    selectedSubCategories.remove(subCategory);
+                                  } else {
+                                    selectedSubCategories.add(subCategory);
+                                  }
+                                });
+                              },
+                              child: Container(
+                                height: 44,
+                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Color(0xFF193CB8) : Color(0xFF252931),
+                                  borderRadius: BorderRadius.circular(56),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    subCategory,
+                                    style: TextStyle(
+                                      fontFamily: 'Pretendard',
+                                      fontSize: isSelected ? 16 : 14,
+                                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.w600,
+                                      color: isSelected ? Color(0xFFC3E1FF) : Color(0xFF949CAD),
+                                      letterSpacing: isSelected ? -0.8 : -0.266,
+                                      height: 24/16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                  ],
+                );
+              }).toList(),
               
               _buildFilterSection('정책 제공 방법', policyMethods, selectedPolicyMethod, (value) {
                 setState(() {
