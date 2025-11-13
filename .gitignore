@@ -3,3 +3,21 @@
 
 # Claude
 .claude/
+
+# Environment variables and secrets
+.env
+*.pem
+*.key
+
+# Flutter/Dart
+FE/.dart_tool/
+FE/build/
+FE/.flutter-plugins
+FE/.flutter-plugins-dependencies
+FE/.packages
+FE/pubspec.lock
+
+# iOS
+FE/ios/Podfile.lock
+FE/ios/.symlinks/
+FE/ios/Flutter/flutter_export_environment.sh

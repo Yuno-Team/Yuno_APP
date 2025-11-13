@@ -29,10 +29,7 @@ services:
       DB_NAME: yuno
       ONTONG_API_KEY: ${ONTONG_API_KEY}
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY}
-      NAVER_CLIENT_ID: ${NAVER_CLIENT_ID}
-      NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
       APPLE_CLIENT_ID: ${APPLE_CLIENT_ID}
     ports:
       - "3000:3000"
