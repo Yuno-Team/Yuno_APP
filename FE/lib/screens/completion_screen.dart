@@ -7,10 +7,12 @@ import 'home_screen.dart';
 class CompletionScreen extends StatefulWidget {
   final List<String> selectedInterests;
   final Map<String, String> profileData;
+  final bool isGuest;
 
   CompletionScreen({
     required this.selectedInterests,
     required this.profileData,
+    this.isGuest = false,
   });
 
   @override
@@ -35,9 +37,13 @@ class _CompletionScreenState extends State<CompletionScreen> {
       // 관심분야 저장
       await prefs.setStringList('user_interests', widget.selectedInterests);
 
+      // 게스트 모드 여부 저장
+      await prefs.setBool('is_guest', widget.isGuest);
+
       print('회원가입 정보 저장 완료');
       print('프로필: ${widget.profileData}');
       print('관심분야: ${widget.selectedInterests}');
+      print('게스트 모드: ${widget.isGuest}');
     } catch (e) {
       print('회원가입 정보 저장 오류: $e');
     }
@@ -57,7 +63,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
               
               // 완료 메시지
               Text(
-                '회원가입이 완료되었습니다',
+                widget.isGuest ? '게스트 모드로 시작합니다' : '회원가입이 완료되었습니다',
                 style: GoogleFonts.notoSans(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

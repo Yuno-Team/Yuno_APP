@@ -52,9 +52,9 @@ class LoginScreen extends StatelessWidget {
                     borderColor: Color(0xFFEBEBEB),
                     onTap: () => _handleGoogleLogin(context),
                   ),
-                  
+
                   SizedBox(height: 8),
-                  
+
                   // 네이버 로그인 버튼
                   _buildSocialLoginButton(
                     iconPath: 'assets/icons/naver.svg',
@@ -63,9 +63,9 @@ class LoginScreen extends StatelessWidget {
                     textColor: Colors.white,
                     onTap: () => _handleNaverLogin(context),
                   ),
-                  
+
                   SizedBox(height: 8),
-                  
+
                   // 카카오 로그인 버튼
                   _buildSocialLoginButton(
                     iconPath: 'assets/icons/kakao.svg',
@@ -74,9 +74,26 @@ class LoginScreen extends StatelessWidget {
                     textColor: Color(0xFF371C1D),
                     onTap: () => _handleKakaoLogin(context),
                   ),
+
+                  SizedBox(height: 16),
+
+                  // 게스트로 시작하기 버튼
+                  GestureDetector(
+                    onTap: () => _handleGuestLogin(context),
+                    child: Text(
+                      '게스트로 시작하기',
+                      style: GoogleFonts.notoSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF949CAD),
+                        decoration: TextDecoration.underline,
+                        decorationColor: Color(0xFF949CAD),
+                      ),
+                    ),
+                  ),
                 ],
               ),
-              
+
               SizedBox(height: 80),
             ],
           ),
@@ -134,22 +151,29 @@ class LoginScreen extends StatelessWidget {
 
   void _handleGoogleLogin(BuildContext context) {
     // TODO: 구글 로그인 로직 구현
-    _navigateToNextScreen(context);
+    _navigateToNextScreen(context, isGuest: false);
   }
 
   void _handleNaverLogin(BuildContext context) {
     // TODO: 네이버 로그인 로직 구현
-    _navigateToNextScreen(context);
+    _navigateToNextScreen(context, isGuest: false);
   }
 
   void _handleKakaoLogin(BuildContext context) {
     // TODO: 카카오 로그인 로직 구현
-    _navigateToNextScreen(context);
+    _navigateToNextScreen(context, isGuest: false);
   }
 
-  void _navigateToNextScreen(BuildContext context) {
+  void _handleGuestLogin(BuildContext context) {
+    // 게스트 모드로 시작
+    _navigateToNextScreen(context, isGuest: true);
+  }
+
+  void _navigateToNextScreen(BuildContext context, {required bool isGuest}) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => ProfileInputScreen()),
+      MaterialPageRoute(
+        builder: (context) => ProfileInputScreen(isGuest: isGuest),
+      ),
     );
   }
 }

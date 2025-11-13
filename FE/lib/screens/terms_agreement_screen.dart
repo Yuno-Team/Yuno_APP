@@ -4,11 +4,13 @@ import 'completion_screen.dart';
 class TermsAgreementScreen extends StatefulWidget {
   final Map<String, dynamic> profileData;
   final List<String> selectedInterests;
+  final bool isGuest;
 
   const TermsAgreementScreen({
     Key? key,
     required this.profileData,
     required this.selectedInterests,
+    this.isGuest = false,
   }) : super(key: key);
 
   @override
@@ -328,6 +330,7 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
           builder: (context) => CompletionScreen(
             selectedInterests: widget.selectedInterests,
             profileData: Map<String, String>.from(widget.profileData),
+            isGuest: widget.isGuest,
           ),
         ),
       );

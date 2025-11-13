@@ -3,8 +3,9 @@ import 'terms_agreement_screen.dart';
 
 class InterestSelectionScreen extends StatefulWidget {
   final Map<String, String>? profileData;
+  final bool isGuest;
 
-  InterestSelectionScreen({this.profileData});
+  InterestSelectionScreen({this.profileData, this.isGuest = false});
 
   @override
   _InterestSelectionScreenState createState() => _InterestSelectionScreenState();
@@ -276,6 +277,7 @@ class _InterestSelectionScreenState extends State<InterestSelectionScreen> {
           builder: (context) => TermsAgreementScreen(
             selectedInterests: [...selectedMainCategories, ...selectedSubCategories],
             profileData: widget.profileData ?? {},
+            isGuest: widget.isGuest,
           ),
         ),
       );

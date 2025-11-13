@@ -4,6 +4,10 @@ import '../widgets/select_field.dart';
 import 'interest_selection_screen.dart';
 
 class ProfileInputScreen extends StatefulWidget {
+  final bool isGuest;
+
+  ProfileInputScreen({this.isGuest = false});
+
   @override
   _ProfileInputScreenState createState() => _ProfileInputScreenState();
 }
@@ -364,6 +368,7 @@ class _ProfileInputScreenState extends State<ProfileInputScreen> {
               'education': _selectedEducation!,
               'major': _selectedMajor!,
             },
+            isGuest: widget.isGuest,
           ),
         ),
       );
