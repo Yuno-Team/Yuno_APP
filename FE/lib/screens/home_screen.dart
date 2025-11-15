@@ -6,6 +6,7 @@ import '../widgets/bottom_navigation_bar.dart';
 import '../models/policy.dart';
 import '../models/policy_filter.dart';
 import '../services/policy_service.dart';
+import '../services/ai_service.dart';
 import 'explore_results_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -81,11 +82,59 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadRecommendedPolicies() async {
-    // AI 모델 개발 중 - 일단 비워둠
-    setState(() {
-      aiRecommendedPolicies = [];
-      _isLoadingRecommended = false;
-    });
+    setState(() => _isLoadingRecommended = true);
+
+    try {
+      // 사용자 프로필 정보 가져오기
+      final prefs = await SharedPreferences.getInstance();
+      String userId = prefs.getString('user_id') ?? 'guest';
+
+      // 새로고침할 때마다 다른 추천을 받기 위해 타임스탬프 추가
+      userId = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+
+      // 생년월일(YYMMDD)에서 나이 계산
+      int age = 24; // 기본값
+      String? birthDate = widget.profileData['birthDate'];
+      if (birthDate != null && birthDate.length == 6) {
+        int birthYear = int.parse(birthDate.substring(0, 2));
+        // 2000년대생이면 2000+, 1900년대생이면 1900+
+        birthYear += (birthYear <= 30) ? 2000 : 1900;
+        int currentYear = DateTime.now().year;
+        age = currentYear - birthYear;
+      }
+
+      String? major = widget.profileData['major'];
+      String? location = widget.profileData['region'];
+
+      // AI 추천 API 호출 (더 많은 후보를 요청)
+      final policies = await AIService.getRecommendations(
+        userId: userId,
+        age: age,
+        major: major,
+        interests: widget.selectedInterests,
+        location: location,
+        topK: 10, // 10개 요청해서 다양성 확보
+      );
+
+      // 랜덤하게 3개 선택
+      setState(() {
+        if (policies.length > 3) {
+          // 리스트 복사본을 만들어서 셔플
+          final shuffled = List<Policy>.from(policies);
+          shuffled.shuffle();
+          aiRecommendedPolicies = shuffled.take(3).toList();
+        } else {
+          aiRecommendedPolicies = policies;
+        }
+        _isLoadingRecommended = false;
+      });
+    } catch (e) {
+      print('AI 추천 로딩 오류: $e');
+      setState(() {
+        aiRecommendedPolicies = [];
+        _isLoadingRecommended = false;
+      });
+    }
   }
 
   Future<void> _loadPopularPolicies() async {
