@@ -120,11 +120,40 @@ class YunoAI:
         """
         print(f"사용자 추천 생성 중: {user_profile}")
 
-        # 사용자 쿼리 생성
-        user_query = f"{user_profile.get('major', '')} 전공 {' '.join(user_profile.get('interests', []))} 관심"
+        # 사용자 쿼리 생성 - BERT 모델을 위한 자연어 문장 형식
+        age = user_profile.get('age', 25)
+        gender = user_profile.get('gender', '')
+        education = user_profile.get('education', '')
+        major = user_profile.get('major', '')
+        interests = user_profile.get('interests', [])
+        location = user_profile.get('location', '')
+
+        # 자연스러운 문장 형태로 사용자 프로필 구성
+        query_parts = []
+        if age:
+            query_parts.append(f"{age}세")
+        if gender:
+            query_parts.append(gender)
+        if education:
+            query_parts.append(f"{education} 학력")
+        if major:
+            query_parts.append(f"{major} 전공")
+
+        user_query = f"{' '.join(query_parts)} 청년이"
+
+        if interests:
+            interests_text = ', '.join(interests)
+            user_query += f" {interests_text}에 관심이 있습니다."
+        else:
+            user_query += " 청년 정책을 찾고 있습니다."
+
+        if location:
+            user_query += f" {location} 지역에서 지원 가능한 정책을 원합니다."
+
         print(f"사용자 쿼리: {user_query}")
 
         scores = []
+        user_location = user_profile.get('location', '')
 
         if self.model and self.policy_embeddings is not None:
             # BERT 기반 추천
@@ -134,40 +163,96 @@ class YunoAI:
             for i, similarity in enumerate(similarities):
                 policy = self.policies_data.iloc[i].copy()
 
-                # 카테고리 매칭 보너스
+                # 지역 필터링 (가장 중요!)
+                policy_region = str(policy.get('rgtrupInstCdNm', '전국'))
+                if user_location:
+                    # 사용자 지역이 있을 때: 해당 지역 OR 전국 정책만
+                    if user_location not in policy_region and '전국' not in policy_region:
+                        continue  # 다른 지역 정책은 제외
+
+                # 나이 필터링
+                user_age = user_profile.get('age')
+                if user_age and pd.notna(policy.get('age_min')) and pd.notna(policy.get('age_max')):
+                    age_min = int(policy['age_min'])
+                    age_max = int(policy['age_max'])
+                    if not (age_min <= user_age <= age_max):
+                        continue  # 나이 조건 불일치 정책 제외
+
+                # 카테고리 매칭 보너스 (모든 대분류 동일한 중요도)
                 interests = user_profile.get('interests', [])
-                if ('취업' in interests or '창업' in interests) and policy['bscPlanPlcyWayNoNm'] == '일자리':
+                policy_category = policy['bscPlanPlcyWayNoNm']
+
+                # 관심사에 해당하는 카테고리면 1.3배 보너스
+                if any(interest in interests for interest in ['취업', '창업', '일자리']) and policy_category == '일자리':
                     similarity *= 1.3
-                elif '장학금' in interests and policy['bscPlanPlcyWayNoNm'] == '교육':
-                    similarity *= 1.5
-                elif '문화' in interests and policy['bscPlanPlcyWayNoNm'] == '복지문화':
-                    similarity *= 1.2
+                elif any(interest in interests for interest in ['장학금', '교육', '학비']) and policy_category == '교육':
+                    similarity *= 1.3
+                elif any(interest in interests for interest in ['문화', '여가', '복지']) and policy_category == '복지문화':
+                    similarity *= 1.3
+                elif any(interest in interests for interest in ['주거', '집', '청약', '임대']) and policy_category == '주거':
+                    similarity *= 1.3
+                elif any(interest in interests for interest in ['대출', '금융', '자금', '융자']) and policy_category == '생활금융':
+                    similarity *= 1.3
 
                 scores.append((i, similarity))
         else:
             # 키워드 기반 매칭 (BERT 없을 때)
             for i, (_, policy) in enumerate(self.policies_data.iterrows()):
+                # 지역 필터링
+                policy_region = str(policy.get('rgtrupInstCdNm', '전국'))
+                if user_location:
+                    if user_location not in policy_region and '전국' not in policy_region:
+                        continue
+
+                # 나이 필터링
+                user_age = user_profile.get('age')
+                if user_age and pd.notna(policy.get('age_min')) and pd.notna(policy.get('age_max')):
+                    age_min = int(policy['age_min'])
+                    age_max = int(policy['age_max'])
+                    if not (age_min <= user_age <= age_max):
+                        continue  # 나이 조건 불일치 정책 제외
+
                 score = 0.1  # 기본 점수
 
+                # 카테고리 매칭 보너스 (모든 대분류 동일한 중요도)
                 interests = user_profile.get('interests', [])
-                if ('취업' in interests or '창업' in interests) and policy['bscPlanPlcyWayNoNm'] == '일자리':
+                policy_category = policy['bscPlanPlcyWayNoNm']
+
+                # 관심사에 해당하는 카테고리면 점수 상승
+                if any(interest in interests for interest in ['취업', '창업', '일자리']) and policy_category == '일자리':
                     score = 0.8
-                elif '장학금' in interests and policy['bscPlanPlcyWayNoNm'] == '교육':
-                    score = 0.9
-                elif '문화' in interests and policy['bscPlanPlcyWayNoNm'] == '복지문화':
-                    score = 0.7
+                elif any(interest in interests for interest in ['장학금', '교육', '학비']) and policy_category == '교육':
+                    score = 0.8
+                elif any(interest in interests for interest in ['문화', '여가', '복지']) and policy_category == '복지문화':
+                    score = 0.8
+                elif any(interest in interests for interest in ['주거', '집', '청약', '임대']) and policy_category == '주거':
+                    score = 0.8
+                elif any(interest in interests for interest in ['대출', '금융', '자금', '융자']) and policy_category == '생활금융':
+                    score = 0.8
 
                 scores.append((i, score))
 
-        # 상위 K개 선택
+        # 상위 10개 중 랜덤으로 K개 선택 (새로고침할 때마다 다른 추천)
         scores.sort(key=lambda x: x[1], reverse=True)
-        top_policies = []
 
-        for i, (idx, score) in enumerate(scores[:top_k]):
+        # 상위 10개 후보 선택
+        candidate_count = min(10, len(scores))
+        top_candidates = scores[:candidate_count]
+
+        # 랜덤으로 top_k개 선택
+        num_to_select = min(top_k, len(top_candidates))
+        selected_indices = random.sample(range(len(top_candidates)), num_to_select)
+
+        top_policies = []
+        for i in selected_indices:
+            idx, score = top_candidates[i]
             policy = self.policies_data.iloc[idx].copy()
             policy_dict = policy.to_dict()
             policy_dict['recommendationScore'] = float(score)
             top_policies.append(policy_dict)
+
+        # 추천 점수 순으로 정렬
+        top_policies.sort(key=lambda x: x['recommendationScore'], reverse=True)
 
         # 팀 백엔드 API 응답 형식 (완전 일치)
         response = {
