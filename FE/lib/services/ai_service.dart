@@ -42,6 +42,8 @@ class AIService {
               rgtrupInstCdNm: item['rgtrupInstCdNm'],
               aplyPrdSeCd: item['aplyPrdSeCd'],
               aplyPrdEndYmd: item['aplyPrdEndYmd'],
+              bizPrdBgngYmd: item['bizPrdBgngYmd'],
+              bizPrdEndYmd: item['bizPrdEndYmd'],
               applicationUrl: item['applicationUrl'],
               requirements: item['requirements'] != null
                   ? List<String>.from(item['requirements'])
@@ -59,6 +61,41 @@ class AIService {
     } catch (e) {
       print('AI Service Error: $e');
       return [];
+    }
+  }
+
+  /// 정책 AI 요약 (Gemini 기반)
+  static Future<String?> getPolicySummary({
+    required String policyId,
+    int? userAge,
+    String? userMajor,
+    List<String>? userInterests,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/summary'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'policy_id': policyId,
+          if (userAge != null) 'user_age': userAge,
+          if (userMajor != null && userMajor.isNotEmpty) 'user_major': userMajor,
+          if (userInterests != null && userInterests.isNotEmpty) 'user_interests': userInterests,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = jsonDecode(utf8.decode(response.bodyBytes));
+
+        if (jsonData['success'] == true) {
+          return jsonData['summary'];
+        }
+      }
+
+      print('AI 요약 API 오류: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      print('AI Summary Error: $e');
+      return null;
     }
   }
 

@@ -50,53 +50,75 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            FadeTransition(
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    children: [
+                      // Yuno 로고 이미지
+                      Image.asset(
+                        'assets/images/yuno_logo.png',
+                        height: 120,
+                        width: 280,
+                        fit: BoxFit.contain,
+                      ),
+                      SizedBox(height: 20),
+                      Text(
+                        '이제 맞춤형 정책 서비스',
+                        style: GoogleFonts.notoSans(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '유노를 즐겨보세요!',
+                        style: GoogleFonts.notoSans(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 100),
+                // 로딩 인디케이터
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 하단 안내 문구
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: FadeTransition(
               opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  // Yuno 로고 이미지
-                  Image.asset(
-                    'assets/images/yuno_logo.png',
-                    height: 120,
-                    width: 280,
-                    fit: BoxFit.contain,
-                  ),
-                  SizedBox(height: 20),
-                  Text(
-                    '이제 맞춤형 정책 서비스',
-                    style: GoogleFonts.notoSans(
-                      fontSize: 16,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    '유노를 즐겨보세요!',
-                    style: GoogleFonts.notoSans(
-                      fontSize: 16,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
+              child: Text(
+                '해당 프로젝트는 대학혁신지원사업의\n일환으로 진행된 프로젝트입니다.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.notoSans(
+                  fontSize: 11,
+                  color: Colors.white24,
+                  fontWeight: FontWeight.w300,
+                ),
               ),
             ),
-            SizedBox(height: 100),
-            // 로딩 인디케이터
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                strokeWidth: 2,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

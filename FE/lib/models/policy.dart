@@ -134,4 +134,38 @@ class Policy {
     }
     return aplyPrdSeCd;
   }
+
+  String get businessPeriodDisplay {
+    if (bizPrdBgngYmd != null && bizPrdEndYmd != null) {
+      try {
+        final startStr = bizPrdBgngYmd!;
+        final endStr = bizPrdEndYmd!;
+
+        // YYYYMMDD 형식을 YYYY.MM.DD로 변환
+        final formattedStart = '${startStr.substring(2, 4)}.${startStr.substring(4, 6)}.${startStr.substring(6, 8)}';
+        final formattedEnd = '${endStr.substring(2, 4)}.${endStr.substring(4, 6)}.${endStr.substring(6, 8)}';
+
+        return '$formattedStart ~ $formattedEnd';
+      } catch (e) {
+        return aplyPrdSeCd == '상시' ? '상시' : '기간 미정';
+      }
+    } else if (bizPrdBgngYmd != null) {
+      try {
+        final startStr = bizPrdBgngYmd!;
+        final formattedStart = '${startStr.substring(2, 4)}.${startStr.substring(4, 6)}.${startStr.substring(6, 8)}';
+        return '$formattedStart ~';
+      } catch (e) {
+        return aplyPrdSeCd == '상시' ? '상시' : '기간 미정';
+      }
+    } else if (bizPrdEndYmd != null) {
+      try {
+        final endStr = bizPrdEndYmd!;
+        final formattedEnd = '${endStr.substring(2, 4)}.${endStr.substring(4, 6)}.${endStr.substring(6, 8)}';
+        return '~ $formattedEnd';
+      } catch (e) {
+        return aplyPrdSeCd == '상시' ? '상시' : '기간 미정';
+      }
+    }
+    return aplyPrdSeCd == '상시' ? '상시' : '기간 미정';
+  }
 }

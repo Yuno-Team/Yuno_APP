@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'policy_ai_summary_screen.dart';
 import '../services/policy_service.dart';
+import '../services/ai_service.dart';
 import '../models/policy.dart';
 import '../models/saved_policy.dart';
 
@@ -143,13 +144,55 @@ class _PolicyDetailScreenState extends State<PolicyDetailScreen>
 
     _loadingController.repeat();
 
-    // 2초 로딩 시뮬레이션 (실제로는 API 호출)
-    await Future.delayed(Duration(seconds: 2));
+    try {
+      // 사용자 프로필 정보 가져오기
+      final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      _isLoadingAiSummary = false;
-      _aiSummaryResult = '이 정책은 청년의 사회진출 지원을 위한 정책이야. 너의 프로필(만 25세, 서울 거주, 미취업자)을 기반으로 분석해보니 딱 맞는 정책이야! 신청하면 좋을 것 같아!';
-    });
+      // 생년월일(YYMMDD)에서 나이 계산
+      int? userAge;
+      String? birthDate = prefs.getString('birthDate');
+      if (birthDate != null && birthDate.length == 6) {
+        int birthYear = int.parse(birthDate.substring(0, 2));
+        birthYear += (birthYear <= 30) ? 2000 : 1900;
+        int currentYear = DateTime.now().year;
+        userAge = currentYear - birthYear;
+      }
+
+      String? userMajor = prefs.getString('major');
+
+      // 관심사 가져오기
+      List<String>? userInterests;
+      String? interestsJson = prefs.getString('selected_interests');
+      if (interestsJson != null) {
+        try {
+          userInterests = List<String>.from(jsonDecode(interestsJson));
+        } catch (e) {
+          print('관심사 파싱 오류: $e');
+        }
+      }
+
+      // AI 요약 API 호출
+      final summary = await AIService.getPolicySummary(
+        policyId: widget.policyId,
+        userAge: userAge,
+        userMajor: userMajor,
+        userInterests: userInterests,
+      );
+
+      setState(() {
+        _isLoadingAiSummary = false;
+        if (summary != null && summary.isNotEmpty) {
+          _aiSummaryResult = summary;
+        } else {
+          _aiSummaryResult = 'AI 요약을 생성할 수 없습니다.';
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingAiSummary = false;
+        _aiSummaryResult = '요약 생성 중 오류가 발생했습니다.';
+      });
+    }
 
     _loadingController.stop();
     _loadingController.reset();

@@ -58,12 +58,22 @@ class YunoAI:
                 app_period = str(row.get('application_period', ''))
                 aply_prd_se_cd = "상시" if "상시" in app_period else "기간"
                 aply_prd_end_ymd = None
+                biz_prd_bgng_ymd = None
+                biz_prd_end_ymd = None
+
                 if '~' in app_period:
                     parts = app_period.split('~')
                     if len(parts) == 2:
+                        # 시작일 파싱
+                        start_date = parts[0].strip().replace('.', '').replace('-', '')[:8]
+                        if start_date.isdigit() and len(start_date) == 8:
+                            biz_prd_bgng_ymd = start_date
+
+                        # 종료일 파싱
                         end_date = parts[1].strip().replace('.', '').replace('-', '')[:8]
-                        if end_date.isdigit():
+                        if end_date.isdigit() and len(end_date) == 8:
                             aply_prd_end_ymd = end_date
+                            biz_prd_end_ymd = end_date
 
                 policy_dict = {
                     "id": str(row.get('id', '')),
@@ -73,6 +83,8 @@ class YunoAI:
                     "rgtrupInstCdNm": str(row.get('supervisor', '전국')),
                     "aplyPrdSeCd": aply_prd_se_cd,
                     "aplyPrdEndYmd": aply_prd_end_ymd,
+                    "bizPrdBgngYmd": biz_prd_bgng_ymd,
+                    "bizPrdEndYmd": biz_prd_end_ymd,
                     "applicationUrl": str(row.get('reference_url', '')),
                     "requirements": requirements if requirements else ["청년 대상"],
                     "saves": int(row.get('view_count', 0)) if pd.notna(row.get('view_count')) else 0,

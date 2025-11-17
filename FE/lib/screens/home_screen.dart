@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../widgets/bottom_navigation_bar.dart';
 import '../models/policy.dart';
+import '../models/saved_policy.dart';
 import '../models/policy_filter.dart';
 import '../services/policy_service.dart';
 import '../services/ai_service.dart';
@@ -22,7 +23,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   int _refreshCount = 3;
 
@@ -30,22 +31,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Policy> aiRecommendedPolicies = [];
   List<Policy> popularPolicies = [];
-  List<Policy> upcomingPolicies = [];
-  Policy? deadlineImminentPolicy; // D-day 또는 D-1 정책
+  List<SavedPolicy> upcomingPolicies = [];
+  SavedPolicy? deadlineImminentPolicy; // D-day 또는 D-1 정책
 
   bool _isLoadingRecommended = true;
   bool _isLoadingPopular = true;
   bool _isLoadingUpcoming = true;
-  
+
   // 배너용 정책 수
   int recentlyAddedCount = 0;
   int deadlineImminentCount = 0;
   int savedPoliciesCount = 0;
 
+  // 새로고침 아이콘 회전 애니메이션
+  AnimationController? _rotationController;
+  bool _isHovering = false;
+
   @override
   void initState() {
     super.initState();
+    _rotationController = AnimationController(
+      duration: Duration(milliseconds: 400),
+      vsync: this,
+    );
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _rotationController?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -154,60 +169,60 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadUpcomingPolicies() async {
     setState(() => _isLoadingUpcoming = true);
     try {
-      final policies = await _policyService.getUpcomingDeadlines();
+      // SharedPreferences에서 저장한 정책 불러오기
+      final prefs = await SharedPreferences.getInstance();
+      final String? savedData = prefs.getString('saved_policies');
 
-      // D-day 또는 D-1 정책 찾기 (신청 마감 임박 안내용)
-      Policy? imminentPolicy;
-      for (var policy in policies) {
-        if (policy.bizPrdEndYmd != null) {
-          final endDate = DateTime.parse(
-            '${policy.bizPrdEndYmd!.substring(0, 4)}-${policy.bizPrdEndYmd!.substring(4, 6)}-${policy.bizPrdEndYmd!.substring(6, 8)}'
-          );
-          final now = DateTime.now();
-          final difference = endDate.difference(DateTime(now.year, now.month, now.day)).inDays;
+      List<SavedPolicy> savedPolicies = [];
+      if (savedData != null) {
+        final List<dynamic> savedList = json.decode(savedData);
+        savedPolicies = savedList.map((item) => SavedPolicy.fromJson(item)).toList();
+      }
 
-          if (difference == 0 || difference == 1) {
-            imminentPolicy = policy;
-            break;
+      // 저장한 정책 중 마감일이 있는 정책만 필터링하고 D-day 계산 (SavedPolicy 모델의 deadlineDisplay 활용)
+      List<Map<String, dynamic>> policiesWithDday = [];
+      for (var policy in savedPolicies) {
+        // deadlineDisplay를 확인하여 D-day가 있는 정책만 필터링
+        final deadline = policy.deadlineDisplay;
+
+        if (deadline.contains('D-')) {
+          // "신청마감 D-5" 형식에서 숫자 추출
+          final match = RegExp(r'D-(\d+)').firstMatch(deadline);
+          if (match != null) {
+            final dday = int.parse(match.group(1)!);
+
+            // D-0 ~ D-31 범위 내의 정책만 포함
+            if (dday >= 0 && dday <= 31) {
+              policiesWithDday.add({
+                'policy': policy,
+                'dday': dday,
+              });
+            }
           }
         }
       }
 
-      // D-3 ~ D-31 정책 필터링 (다가오는 일정용)
-      final filteredPolicies = policies.where((policy) {
-        if (policy.bizPrdEndYmd != null) {
-          try {
-            final endDate = DateTime.parse(
-              '${policy.bizPrdEndYmd!.substring(0, 4)}-${policy.bizPrdEndYmd!.substring(4, 6)}-${policy.bizPrdEndYmd!.substring(6, 8)}'
-            );
-            final now = DateTime.now();
-            final difference = endDate.difference(DateTime(now.year, now.month, now.day)).inDays;
-            return difference >= 3 && difference <= 31;
-          } catch (e) {
-            return false;
-          }
-        }
-        return false;
-      }).toList();
+      // D-day가 가까운 순으로 정렬 (오름차순)
+      policiesWithDday.sort((a, b) => a['dday'].compareTo(b['dday']));
 
-      // D-day가 가까운 순으로 정렬
-      filteredPolicies.sort((a, b) {
-        final aDate = DateTime.parse(
-          '${a.bizPrdEndYmd!.substring(0, 4)}-${a.bizPrdEndYmd!.substring(4, 6)}-${a.bizPrdEndYmd!.substring(6, 8)}'
-        );
-        final bDate = DateTime.parse(
-          '${b.bizPrdEndYmd!.substring(0, 4)}-${b.bizPrdEndYmd!.substring(4, 6)}-${b.bizPrdEndYmd!.substring(6, 8)}'
-        );
-        return aDate.compareTo(bDate);
-      });
+      // 최대 6개만 선택
+      final limitedPolicies = policiesWithDday.take(6).map((item) => item['policy'] as SavedPolicy).toList();
+
+      // D-day 또는 D-1 정책 찾기 (배너용)
+      SavedPolicy? imminentPolicy;
+      for (var item in policiesWithDday) {
+        if (item['dday'] == 0 || item['dday'] == 1) {
+          imminentPolicy = item['policy'] as SavedPolicy;
+          break;
+        }
+      }
 
       setState(() {
         deadlineImminentPolicy = imminentPolicy;
-        upcomingPolicies = filteredPolicies;
+        upcomingPolicies = limitedPolicies;
         _isLoadingUpcoming = false;
       });
     } catch (e) {
-      print('마감임박 정책 로딩 오류: $e');
       setState(() => _isLoadingUpcoming = false);
     }
   }
@@ -251,42 +266,51 @@ class _HomeScreenState extends State<HomeScreen> {
             // 스크롤 가능한 콘텐츠
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(height: 16),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 16),
 
-                    // 오늘의 AI 추천 정책 섹션
-                    _buildAiRecommendationSection(),
+                          // 오늘의 AI 추천 정책 섹션
+                          _buildAiRecommendationSection(),
 
-                    SizedBox(height: 16),
+                          SizedBox(height: 16),
 
-                    // 추천 버튼 영역
-                    _buildRecommendationButtons(),
+                          // 추천 버튼 영역
+                          _buildRecommendationButtons(),
 
-                    // 주요 알림 배너 (위치 이동됨) - 있을 때만 간격 추가
-                    if (deadlineImminentPolicy != null) ...[
-                      SizedBox(height: 16),
-                      _buildNotificationBanner(),
-                      SizedBox(height: 16),
-                    ],
+                          // 주요 알림 배너 (위치 이동됨) - 있을 때만 간격 추가
+                          if (deadlineImminentPolicy != null) ...[
+                            SizedBox(height: 16),
+                            _buildNotificationBanner(),
+                            SizedBox(height: 16),
+                          ],
 
-                    // 배너가 없으면 간격만 추가
-                    if (deadlineImminentPolicy == null) SizedBox(height: 16),
+                          // 배너가 없으면 간격만 추가
+                          if (deadlineImminentPolicy == null) SizedBox(height: 16),
 
-                    // 인기 정책 TOP3
-                    _buildPopularPoliciesSection(),
+                          // 인기 정책 TOP3
+                          _buildPopularPoliciesSection(),
 
-                    SizedBox(height: 16),
+                          SizedBox(height: 16),
 
-                    // 새로운 배너 (3칸)
-                    _buildPolicyCountsBanner(),
+                          // 새로운 배너 (3칸)
+                          _buildPolicyCountsBanner(),
 
-                    SizedBox(height: 16),
+                          SizedBox(height: 16),
 
-                    // 다가오는 일정
-                    _buildUpcomingScheduleSection(),
+                          // 다가오는 일정
+                          _buildUpcomingScheduleSection(),
+
+                          SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
 
                     SizedBox(height: 100), // 하단 여백
                   ],
@@ -358,24 +382,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                GestureDetector(
-                  onTap: _refreshAiRecommendations,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    child: Row(
-                      children: [
-                        Image.asset(
-                          'assets/icons/restart.png',
-                          width: 12,
-                          height: 12,
-                        ),
-                        SizedBox(width: 2),
-                        Text(
-                          '새로고침  $_refreshCount/3',
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                MouseRegion(
+                  onEnter: (_) {
+                    setState(() => _isHovering = true);
+                    _rotationController?.forward(from: 0.0);
+                  },
+                  onExit: (_) {
+                    setState(() => _isHovering = false);
+                  },
+                  child: GestureDetector(
+                    onTap: _refreshAiRecommendations,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      child: Row(
+                        children: [
+                          if (_rotationController != null)
+                            RotationTransition(
+                              turns: _rotationController!,
+                              child: Image.asset(
+                                'assets/icons/restart.png',
+                                width: 12,
+                                height: 12,
+                              ),
+                            )
+                          else
+                            Image.asset(
+                              'assets/icons/restart.png',
+                              width: 12,
+                              height: 12,
+                            ),
+                          SizedBox(width: 2),
+                          Text(
+                            '새로고침  $_refreshCount/3',
+                            style: TextStyle(
+                              fontFamily: 'Pretendard',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             color: Color(0xFF949CAD),
                             letterSpacing: -0.6,
                             height: 1.5,
@@ -384,6 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+                ),
                 ),
               ],
             ),
@@ -427,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  policy.aplyPrdSeCd,
+                  policy.businessPeriodDisplay,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: 12,
@@ -616,17 +659,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNotificationBanner() {
     // 호출하는 곳에서 null 체크를 하므로 여기서는 항상 표시
     final policy = deadlineImminentPolicy!;
-    final endDate = DateTime.parse(
-      '${policy.bizPrdEndYmd!.substring(0, 4)}-${policy.bizPrdEndYmd!.substring(4, 6)}-${policy.bizPrdEndYmd!.substring(6, 8)}'
-    );
+    final endDate = policy.deadline;
     final now = DateTime.now();
     final difference = endDate.difference(DateTime(now.year, now.month, now.day)).inDays;
 
     // D-day면 clock.png, D-1이면 calendar.png
     final iconPath = difference == 0 ? 'assets/icons/clock.png' : 'assets/icons/calendar.png';
     final message = difference == 0
-        ? '오늘 ${policy.plcyNm} 신청 마감일이에요!'
-        : '내일 ${policy.plcyNm} 신청 마감일이에요!';
+        ? '오늘 ${policy.title} 신청 마감일이에요!'
+        : '내일 ${policy.title} 신청 마감일이에요!';
 
     return GestureDetector(
       onTap: () {
@@ -810,6 +851,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildUpcomingScheduleSection() {
     if (_isLoadingUpcoming) {
       return Container(
+        width: double.infinity,
         padding: EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Color(0xFF252931),
@@ -821,47 +863,43 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, '/saved');
-      },
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Color(0xFF252931),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '다가오는 일정',
-              style: TextStyle(
-                fontFamily: 'Pretendard',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF949CAD),
-                letterSpacing: -0.8,
-              ),
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Color(0xFF252931),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '다가오는 일정',
+            style: TextStyle(
+              fontFamily: 'Pretendard',
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF949CAD),
+              letterSpacing: -0.8,
             ),
-            SizedBox(height: 8),
-            if (upcomingPolicies.isEmpty)
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  '마감 임박 정책이 없습니다',
-                  style: TextStyle(color: Color(0xFF949CAD)),
-                ),
-              )
-            else
-              ...upcomingPolicies.take(5).map((policy) => _buildUpcomingScheduleCard(policy)),
-          ],
-        ),
+          ),
+          SizedBox(height: 8),
+          if (upcomingPolicies.isEmpty)
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '저장한 정책 중 마감 임박한 일정이 없습니다',
+                style: TextStyle(color: Color(0xFF949CAD), fontSize: 14),
+              ),
+            )
+          else
+            ...upcomingPolicies.take(6).map((policy) => _buildUpcomingScheduleCard(policy)),
+        ],
       ),
     );
   }
 
-  Widget _buildUpcomingScheduleCard(Policy policy) {
+  Widget _buildUpcomingScheduleCard(SavedPolicy policy) {
     final deadline = policy.deadlineDisplay;
     final isUrgent = deadline.contains('D-') &&
                      int.tryParse(deadline.replaceAll(RegExp(r'[^0-9]'), '')) != null &&

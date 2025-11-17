@@ -381,7 +381,10 @@ async def get_policy_summary(request: SummaryRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Summary generation failed: {str(e)}")
+        import traceback
+        error_detail = f"Summary generation failed: {str(e)}\n{traceback.format_exc()}"
+        print(f"[ERROR] {error_detail}")
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @app.delete("/api/cache", tags=["Admin"])
