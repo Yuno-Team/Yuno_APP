@@ -111,6 +111,8 @@ class _SearchHeaderState extends State<SearchHeader> {
                             }
                           },
                           textInputAction: TextInputAction.search,
+                          keyboardType: TextInputType.text,
+                          enableInteractiveSelection: false,
                           style: TextStyle(
                             fontFamily: 'Pretendard',
                             fontSize: 16,

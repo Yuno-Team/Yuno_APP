@@ -53,7 +53,7 @@ class _InputFieldState extends State<InputField> {
   Widget build(BuildContext context) {
     return Container(
       height: 44,
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: widget.enabled ? Color(0xFF1A1D23) : Color(0xFF252931),
         borderRadius: BorderRadius.circular(6),
@@ -71,13 +71,14 @@ class _InputFieldState extends State<InputField> {
               onChanged: widget.onChanged,
               keyboardType: widget.keyboardType,
               maxLength: widget.maxLength,
+              textAlignVertical: TextAlignVertical.center,
               style: TextStyle(
                 fontFamily: 'Pretendard',
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: widget.enabled ? Color(0xFFF6F8FA) : Color(0xFFBDC4D0),
                 letterSpacing: -0.8,
-                height: 24/16,
+                height: 1.0,
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
@@ -88,9 +89,11 @@ class _InputFieldState extends State<InputField> {
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF6A7180),
                   letterSpacing: -0.8,
-                  height: 24/16,
+                  height: 1.0,
                 ),
                 counterText: '', // maxLength 카운터 숨기기
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
               ),
             ),
           ),

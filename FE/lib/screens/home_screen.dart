@@ -23,7 +23,7 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _selectedIndex = 0;
   int _refreshCount = 3;
 
@@ -47,9 +47,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   AnimationController? _rotationController;
   bool _isHovering = false;
 
+  // didChangeDependencies 중복 호출 방지
+  bool _isInitialized = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _rotationController = AnimationController(
       duration: Duration(milliseconds: 400),
       vsync: this,
@@ -59,8 +63,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _rotationController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // 앱이 다시 포그라운드로 돌아올 때 데이터 새로고침
+      _loadUpcomingPolicies();
+      _loadPolicyCounts();
+    }
+  }
+
+  // 화면이 다시 활성화될 때마다 호출됨 (다른 화면에서 돌아올 때)
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 초기 로딩이 완료된 후에만 새로고침 (무한 루프 및 중복 로딩 방지)
+    if (_isInitialized && mounted) {
+      _loadUpcomingPolicies();
+      _loadPolicyCounts();
+    }
   }
 
   Future<void> _loadData() async {
@@ -70,6 +96,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _loadUpcomingPolicies(),
       _loadPolicyCounts(),
     ]);
+    // 초기 로딩 완료 표시
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
   Future<void> _loadPolicyCounts() async {
@@ -441,13 +473,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildAiPolicyCard(Policy policy) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         // 해당 정책의 상세 페이지로 이동
-        Navigator.pushNamed(
-          context, 
+        await Navigator.pushNamed(
+          context,
           '/policy_detail',
           arguments: policy.id,
         );
+        // 정책 상세 화면에서 돌아온 후 다가오는 일정과 저장한 정책 수 새로고침
+        await _loadUpcomingPolicies();
+        await _loadPolicyCounts();
       },
       child: Container(
         padding: EdgeInsets.all(8),
@@ -663,19 +698,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final now = DateTime.now();
     final difference = endDate.difference(DateTime(now.year, now.month, now.day)).inDays;
 
-    // D-day면 clock.png, D-1이면 calendar.png
-    final iconPath = difference == 0 ? 'assets/icons/clock.png' : 'assets/icons/calendar.png';
+    // D-day면 clock.png, D-1이면 calandeer.png
+    final iconPath = difference == 0 ? 'assets/icons/clock.png' : 'assets/icons/calandeer.png';
     final message = difference == 0
         ? '오늘 ${policy.title} 신청 마감일이에요!'
-        : '내일 ${policy.title} 신청 마감일이에요!';
+        : '${policy.title} 신청 마감이 내일이에요.';
 
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
+      onTap: () async {
+        await Navigator.pushNamed(
           context,
           '/policy_detail',
           arguments: policy.id,
         );
+        // 정책 상세 화면에서 돌아온 후 다가오는 일정과 저장한 정책 수 새로고침
+        await _loadUpcomingPolicies();
+        await _loadPolicyCounts();
       },
       child: Container(
         height: 64,
@@ -779,12 +817,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildPopularPolicyCard(Policy policy) {
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
+      onTap: () async {
+        await Navigator.pushNamed(
           context,
           '/policy_detail',
           arguments: policy.id,
         );
+        // 정책 상세 화면에서 돌아온 후 다가오는 일정과 저장한 정책 수 새로고침
+        await _loadUpcomingPolicies();
+        await _loadPolicyCounts();
       },
       child: Container(
         padding: EdgeInsets.all(8),
@@ -906,12 +947,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                      int.parse(deadline.replaceAll(RegExp(r'[^0-9]'), '')) <= 7;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
+      onTap: () async {
+        await Navigator.pushNamed(
           context,
           '/policy_detail',
           arguments: policy.id,
         );
+        // 정책 상세 화면에서 돌아온 후 다가오는 일정과 저장한 정책 수 새로고침
+        await _loadUpcomingPolicies();
+        await _loadPolicyCounts();
       },
       child: Container(
         padding: EdgeInsets.all(8),
