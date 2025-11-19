@@ -83,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void didChangeDependencies() {
     super.didChangeDependencies();
     // 초기 로딩이 완료된 후에만 새로고침 (무한 루프 및 중복 로딩 방지)
+    // AI 추천은 관심분야 수정 화면에서 돌아올 때만 새로고침 (home_screen.dart:635-638 참조)
     if (_isInitialized && mounted) {
       _loadUpcomingPolicies();
       _loadPolicyCounts();
@@ -141,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       // 생년월일(YYMMDD)에서 나이 계산
       int age = 24; // 기본값
-      String? birthDate = widget.profileData['birthDate'];
+      String? birthDate = prefs.getString('birthDate');
       if (birthDate != null && birthDate.length == 6) {
         int birthYear = int.parse(birthDate.substring(0, 2));
         // 2000년대생이면 2000+, 1900년대생이면 1900+
@@ -150,15 +151,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         age = currentYear - birthYear;
       }
 
-      String? major = widget.profileData['major'];
-      String? location = widget.profileData['region'];
+      String? major = prefs.getString('major');
+      String? location = prefs.getString('region');
+      List<String> interests = prefs.getStringList('user_interests') ?? [];
 
       // AI 추천 API 호출 (더 많은 후보를 요청)
       final policies = await AIService.getRecommendations(
         userId: userId,
         age: age,
         major: major,
-        interests: widget.selectedInterests,
+        interests: interests,
         location: location,
         topK: 10, // 10개 요청해서 다양성 확보
       );
@@ -630,8 +632,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         SizedBox(width: 10),
         Expanded(
           child: GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, '/my_interests_edit');
+            onTap: () async {
+              await Navigator.pushNamed(context, '/my_interests_edit');
+              // 관심분야 수정 후 돌아왔을 때 AI 추천 새로고침
+              await _loadRecommendedPolicies();
             },
             child: Container(
               height: 69,

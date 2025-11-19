@@ -72,6 +72,13 @@ class _MyInterestsEditScreenState extends State<MyInterestsEditScreen> {
     }
   }
 
+  // 저장 버튼 활성화 조건 체크
+  bool get canSave {
+    // 대분류 1개 이상, 중분류 3개 이상 선택되어야 함
+    return selectedMainCategories.isNotEmpty &&
+           selectedSubCategories.length >= 3;
+  }
+
   Future<void> _saveInterests() async {
     try {
       // 대분류 이름을 제거하고 중분류만 저장
@@ -273,12 +280,13 @@ class _MyInterestsEditScreenState extends State<MyInterestsEditScreen> {
               child: Container(
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: _saveInterests,
+                  onPressed: canSave ? _saveInterests : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFF6F8FA),
+                    backgroundColor: canSave ? Color(0xFFF6F8FA) : Color(0xFF252931),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    disabledBackgroundColor: Color(0xFF252931),
                   ),
                   child: Text(
                     '저장',
@@ -286,7 +294,7 @@ class _MyInterestsEditScreenState extends State<MyInterestsEditScreen> {
                       fontFamily: 'Pretendard',
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1D23),
+                      color: canSave ? Color(0xFF1A1D23) : Color(0xFF6A7180),
                       letterSpacing: -1.0,
                       height: 24/20,
                     ),
