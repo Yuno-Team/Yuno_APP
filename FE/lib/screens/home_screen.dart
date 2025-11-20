@@ -34,6 +34,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<SavedPolicy> upcomingPolicies = [];
   SavedPolicy? deadlineImminentPolicy; // D-day 또는 D-1 정책
 
+  // AI 추천 정책 캐싱 (화면 전환 시 일관성 유지)
+  List<Policy>? _cachedRecommendations;
+
   bool _isLoadingRecommended = true;
   bool _isLoadingPopular = true;
   bool _isLoadingUpcoming = true;
@@ -133,6 +136,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() => _isLoadingRecommended = true);
 
     try {
+      // 캐시가 있으면 재사용 (화면 전환 시 일관성 유지)
+      if (_cachedRecommendations != null && _cachedRecommendations!.isNotEmpty) {
+        setState(() {
+          aiRecommendedPolicies = _cachedRecommendations!;
+          _isLoadingRecommended = false;
+        });
+        return;
+      }
+
       // 사용자 프로필 정보 가져오기
       final prefs = await SharedPreferences.getInstance();
       String userId = prefs.getString('user_id') ?? 'guest';
@@ -155,19 +167,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       String? location = prefs.getString('region');
       List<String> interests = prefs.getStringList('user_interests') ?? [];
 
-      // AI 추천 API 호출 - 서버에서 지역 필터링된 정책 3개 받기
+      // AI 추천 API 호출 - 서버에서 지역 필터링된 정책 10개 받기
       final policies = await AIService.getRecommendations(
         userId: userId,
         age: age,
         major: major,
         interests: interests,
         location: location,
-        topK: 3, // 정확히 3개만 요청
+        topK: 10, // 10개 받아서 다양성 확보
       );
 
-      // 셔플 없이 서버에서 받은 그대로 표시
+      // 첫 로드 또는 새로고침 시에만 셔플하고 캐시 저장
+      if (policies.length > 3) {
+        final shuffled = List<Policy>.from(policies);
+        shuffled.shuffle();
+        _cachedRecommendations = shuffled.take(3).toList();
+      } else {
+        _cachedRecommendations = policies;
+      }
+
       setState(() {
-        aiRecommendedPolicies = policies;
+        aiRecommendedPolicies = _cachedRecommendations!;
         _isLoadingRecommended = false;
       });
     } catch (e) {
@@ -258,6 +278,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (_refreshCount > 0) {
       setState(() {
         _refreshCount--;
+        _cachedRecommendations = null; // 캐시 초기화하여 새로운 정책 로드
       });
       _loadRecommendedPolicies();
     }
@@ -628,6 +649,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             onTap: () async {
               await Navigator.pushNamed(context, '/my_interests_edit');
               // 관심분야 수정 후 돌아왔을 때 AI 추천 새로고침
+              setState(() {
+                _cachedRecommendations = null; // 캐시 초기화
+              });
               await _loadRecommendedPolicies();
             },
             child: Container(
