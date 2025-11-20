@@ -648,9 +648,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           child: GestureDetector(
             onTap: () async {
               await Navigator.pushNamed(context, '/my_interests_edit');
-              // 관심분야 수정 후 돌아왔을 때 AI 추천 새로고침
+              // 관심분야 수정 후 돌아왔을 때 AI 추천 새로고침 및 횟수 리셋
               setState(() {
                 _cachedRecommendations = null; // 캐시 초기화
+                _refreshCount = 3; // 새로운 관심분야이므로 새로고침 횟수 리셋
               });
               await _loadRecommendedPolicies();
             },
