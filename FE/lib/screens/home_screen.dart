@@ -155,26 +155,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       String? location = prefs.getString('region');
       List<String> interests = prefs.getStringList('user_interests') ?? [];
 
-      // AI 추천 API 호출 (더 많은 후보를 요청)
+      // AI 추천 API 호출 - 서버에서 지역 필터링된 정책 3개 받기
       final policies = await AIService.getRecommendations(
         userId: userId,
         age: age,
         major: major,
         interests: interests,
         location: location,
-        topK: 10, // 10개 요청해서 다양성 확보
+        topK: 3, // 정확히 3개만 요청
       );
 
-      // 랜덤하게 3개 선택
+      // 셔플 없이 서버에서 받은 그대로 표시
       setState(() {
-        if (policies.length > 3) {
-          // 리스트 복사본을 만들어서 셔플
-          final shuffled = List<Policy>.from(policies);
-          shuffled.shuffle();
-          aiRecommendedPolicies = shuffled.take(3).toList();
-        } else {
-          aiRecommendedPolicies = policies;
-        }
+        aiRecommendedPolicies = policies;
         _isLoadingRecommended = false;
       });
     } catch (e) {
