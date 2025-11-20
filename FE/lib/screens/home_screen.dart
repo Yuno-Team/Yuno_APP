@@ -144,9 +144,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // 새로고침할 때마다 다른 추천을 받기 위해 타임스탬프 추가
       userId = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
 
+      // 프로필 정보 읽기 (JSON 디코딩)
+      String? profileJson = prefs.getString('user_profile');
+      Map<String, dynamic> profileData = {};
+      if (profileJson != null) {
+        profileData = json.decode(profileJson);
+      }
+
       // 생년월일(YYMMDD)에서 나이 계산
       int age = 24; // 기본값
-      String? birthDate = prefs.getString('birthDate');
+      String? birthDate = profileData['birthDate'];
       if (birthDate != null && birthDate.length == 6) {
         int birthYear = int.parse(birthDate.substring(0, 2));
         // 2000년대생이면 2000+, 1900년대생이면 1900+
@@ -155,8 +162,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         age = currentYear - birthYear;
       }
 
-      String? major = prefs.getString('major');
-      String? location = prefs.getString('region');
+      String? major = profileData['major'];
+      String? location = profileData['region'];
       List<String> interests = prefs.getStringList('user_interests') ?? [];
 
       // AI 추천 API 호출 - 서버에서 지역 필터링된 정책 10개 받기
