@@ -82,16 +82,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   // 화면이 다시 활성화될 때마다 호출됨 (다른 화면에서 돌아올 때)
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // 초기 로딩이 완료된 후에만 새로고침 (무한 루프 및 중복 로딩 방지)
-    // AI 추천은 관심분야 수정 화면에서 돌아올 때만 새로고침 (home_screen.dart:635-638 참조)
-    if (_isInitialized && mounted) {
-      _loadUpcomingPolicies();
-      _loadPolicyCounts();
-    }
-  }
+  // NOTE: didChangeDependencies 제거하여 불필요한 API 호출 방지
+  // 필요한 경우에만 수동으로 새로고침 (정책 상세/저장 화면에서 돌아올 때)
 
   Future<void> _loadData() async {
     await Future.wait([
@@ -382,7 +374,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               Navigator.pushNamed(context, '/explore');
               break;
             case 2:
-              Navigator.pushNamed(context, '/saved');
+              Navigator.pushNamed(context, '/saved').then((_) {
+                // 저장 화면에서 돌아올 때 저장한 정책 수와 다가오는 일정 새로고침
+                _loadPolicyCounts();
+                _loadUpcomingPolicies();
+              });
               break;
             case 3:
               Navigator.pushNamed(context, '/my');
