@@ -32,12 +32,8 @@ class YunoAI:
         try:
             # CSV 로딩
             df = pd.read_csv(csv_path, encoding='utf-8-sig')
-            print(f"전체 데이터 로딩: {len(df)}개 정책")
-
-            # 2025년도 정책만 필터링 (ID가 2025로 시작하는 것만)
             df['id'] = df['id'].astype(str)
-            df = df[df['id'].str.startswith('2025')]
-            print(f"2025년 정책 필터링: {len(df)}개 정책")
+            print(f"전체 데이터 로딩: {len(df)}개 정책")
 
             # 팀 백엔드 API 형식으로 변환
             policies = []
