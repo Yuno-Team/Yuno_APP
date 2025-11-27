@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 from google import genai
+import httpx  # 백엔드 API 호출용
 
 from yuno_ai_system_clean import YunoAI
 
@@ -34,6 +35,9 @@ if GEMINI_API_KEY:
 else:
     gemini_client = None
     print("WARNING: Gemini API key not found")
+
+# 백엔드 API URL
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:3000")
 
 # 라이프사이클 관리
 @asynccontextmanager
@@ -159,7 +163,10 @@ class SummaryRequest(BaseModel):
                 "policy_id": "20240703005400200002",
                 "user_age": 24,
                 "user_major": "컴퓨터공학",
-                "user_interests": ["취업", "창업"]
+                "user_interests": ["취업", "창업"],
+                "policy_title": "청년창업지원사업",
+                "policy_description": "청년 창업을 지원하는 정책",
+                "policy_category": "창업"
             }
         }
     )
@@ -168,6 +175,11 @@ class SummaryRequest(BaseModel):
     user_age: Optional[int] = Field(None, ge=15, le=39, description="사용자 나이")
     user_major: Optional[str] = Field(None, description="사용자 전공")
     user_interests: Optional[List[str]] = Field(default_factory=list, description="사용자 관심사")
+    # 정책 정보 (CSV에 없을 경우 사용)
+    policy_title: Optional[str] = Field(None, description="정책 제목")
+    policy_description: Optional[str] = Field(None, description="정책 설명")
+    policy_category: Optional[str] = Field(None, description="정책 카테고리")
+    support_content: Optional[str] = Field(None, description="지원 내용")
 
 class SummaryResponse(BaseModel):
     """정책 요약 응답"""
@@ -200,6 +212,27 @@ def clean_cache():
         keys_to_remove = list(recommendation_cache.keys())[:MAX_CACHE_SIZE // 2]
         for key in keys_to_remove:
             del recommendation_cache[key]
+
+
+async def fetch_policy_from_backend(policy_id: str) -> Optional[Dict[str, Any]]:
+    """백엔드 API에서 정책 정보 가져오기"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{BACKEND_API_URL}/api/policies/{policy_id}")
+
+            if response.status_code == 200:
+                policy_data = response.json()
+                print(f"[INFO] Successfully fetched policy {policy_id} from backend")
+                return policy_data
+            elif response.status_code == 404:
+                print(f"[WARNING] Policy {policy_id} not found in backend")
+                return None
+            else:
+                print(f"[ERROR] Backend API returned status {response.status_code}")
+                return None
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch policy from backend: {e}")
+        return None
 
 
 # API 엔드포인트
@@ -313,23 +346,56 @@ async def get_policy_summary(request: SummaryRequest):
 
         # 캐시 확인
         if cache_key in summary_cache:
-            policy = ai_model.policies_data[ai_model.policies_data['id'] == request.policy_id].iloc[0]
+            # 캐시된 제목 가져오기 (CSV 또는 요청 데이터)
+            policy_df = ai_model.policies_data[ai_model.policies_data['id'] == request.policy_id]
+            if not policy_df.empty:
+                policy_title = policy_df.iloc[0]['plcyNm']
+            else:
+                policy_title = request.policy_title or "정책"
+
             return SummaryResponse(
                 success=True,
                 policy_id=request.policy_id,
-                policy_title=policy['plcyNm'],
+                policy_title=policy_title,
                 summary=summary_cache[cache_key],
                 timestamp=datetime.now().isoformat(),
                 cached=True
             )
 
-        # 정책 정보 조회
+        # 정책 정보 조회 (CSV 우선, 없으면 백엔드 API 호출)
         policy_df = ai_model.policies_data[ai_model.policies_data['id'] == request.policy_id]
 
-        if policy_df.empty:
-            raise HTTPException(status_code=404, detail="Policy not found")
+        if not policy_df.empty:
+            # CSV에 정책이 있는 경우
+            policy = policy_df.iloc[0]
+            policy_title = policy['plcyNm']
+            policy_description = policy['plcyExplnCn']
+            policy_category = policy['bscPlanPlcyWayNoNm']
+            support_content = policy.get('support_content', '정보 없음')
+        else:
+            # CSV에 없는 경우 백엔드 API에서 가져오기
+            backend_policy = await fetch_policy_from_backend(request.policy_id)
 
-        policy = policy_df.iloc[0]
+            if backend_policy:
+                # 백엔드에서 정책을 찾은 경우
+                policy_title = backend_policy.get('title', '정책')
+                policy_description = backend_policy.get('description', '정보 없음')
+                policy_category = backend_policy.get('category', '정보 없음')
+                support_content = backend_policy.get('content', '정보 없음')
+                print(f"[INFO] Using backend API data for policy ID: {request.policy_id}")
+            elif request.policy_title:
+                # 백엔드에도 없지만 요청 데이터가 있는 경우
+                policy_title = request.policy_title
+                policy_description = request.policy_description or "정보 없음"
+                policy_category = request.policy_category or "정보 없음"
+                support_content = request.support_content or "정보 없음"
+                print(f"[INFO] Using request data for policy ID: {request.policy_id}")
+            else:
+                # 모든 곳에서 정책을 찾지 못한 경우
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Policy {request.policy_id} not found in CSV, backend, or request data"
+                )
 
         # Gemini 프롬프트 생성
         user_info = ""
@@ -345,10 +411,10 @@ async def get_policy_summary(request: SummaryRequest):
         prompt = f"""다음 정책 정보를 보고, 사용자에게 맞춤형 요약을 2-3문장으로 작성해주세요.
 
 정책 정보:
-- 제목: {policy['plcyNm']}
-- 설명: {policy['plcyExplnCn']}
-- 카테고리: {policy['bscPlanPlcyWayNoNm']}
-- 지원 내용: {policy.get('support_content', '정보 없음')}
+- 제목: {policy_title}
+- 설명: {policy_description}
+- 카테고리: {policy_category}
+- 지원 내용: {support_content}
 
 {user_info_section}
 
@@ -372,7 +438,7 @@ async def get_policy_summary(request: SummaryRequest):
         return SummaryResponse(
             success=True,
             policy_id=request.policy_id,
-            policy_title=policy['plcyNm'],
+            policy_title=policy_title,
             summary=summary_text,
             timestamp=datetime.now().isoformat(),
             cached=False
