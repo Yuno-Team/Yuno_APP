@@ -275,10 +275,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _refreshAiRecommendations() {
     if (_refreshCount > 0) {
+      // 캐시 먼저 초기화
+      _cachedRecommendations = null;
+      
       setState(() {
         _refreshCount--;
-        _cachedRecommendations = null; // 캐시 초기화하여 새로운 정책 로드
       });
+      
+      // 새로운 정책 로드
       _loadRecommendedPolicies();
     }
   }
@@ -524,7 +528,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 SizedBox(height: 4),
                 Text(
-                  policy.businessPeriodDisplay,
+                  policy.businessPeriodDisplay.length > 11 
+                      ? '${policy.businessPeriodDisplay.substring(0, 11)}...'
+                      : policy.businessPeriodDisplay,
                   style: TextStyle(
                     fontFamily: 'Pretendard',
                     fontSize: 12,
@@ -533,50 +539,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     letterSpacing: -0.6,
                     height: 14/12,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF162455),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    policy.category,
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF2C7FFF),
-                      letterSpacing: -0.7,
-                      height: 16/14,
+            Flexible(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF162455),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      policy.category,
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF2C7FFF),
+                        letterSpacing: -0.7,
+                        height: 16/14,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(width: 2),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF002D21),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    policy.region,
-                    style: TextStyle(
-                      fontFamily: 'Pretendard',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF00D492),
-                      letterSpacing: -0.7,
-                      height: 16/14,
+                  SizedBox(width: 2),
+                  Flexible(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF002D21),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        policy.region.length > 11 
+                            ? '${policy.region.substring(0, 11)}...'
+                            : policy.region,
+                        style: TextStyle(
+                          fontFamily: 'Pretendard',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF00D492),
+                          letterSpacing: -0.7,
+                          height: 16/14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
