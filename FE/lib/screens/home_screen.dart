@@ -556,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      policy.category,
+                      policy.category.split(',').first.trim(),
                       style: TextStyle(
                         fontFamily: 'Pretendard',
                         fontSize: 14,
@@ -565,6 +565,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         letterSpacing: -0.7,
                         height: 16/14,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   SizedBox(width: 2),
