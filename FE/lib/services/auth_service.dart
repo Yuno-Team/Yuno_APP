@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../models/user.dart';
+import '../constants/api_constants.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -8,40 +12,53 @@ class AuthService {
   User? _currentUser;
   User? get currentUser => _currentUser;
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithApple() async {
     try {
-      // TODO: 실제 구글 로그인 구현
-      await Future.delayed(Duration(seconds: 1));
-      
-      _currentUser = User(
-        id: 'google_user_123',
-        email: 'user@gmail.com',
-        name: '사용자',
-        createdAt: DateTime.now(),
+      // Apple 로그인 요청
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
       );
-      
-      return true;
-    } catch (e) {
-      print('Google sign in error: $e');
-      return false;
-    }
-  }
 
-  Future<bool> signInWithNaver() async {
-    try {
-      // TODO: 실제 네이버 로그인 구현
-      await Future.delayed(Duration(seconds: 1));
-      
-      _currentUser = User(
-        id: 'naver_user_123',
-        email: 'user@naver.com',
-        name: '사용자',
-        createdAt: DateTime.now(),
+      // identityToken을 백엔드로 전송
+      if (credential.identityToken == null) {
+        print('Apple identity token is null');
+        return false;
+      }
+
+      // 백엔드 API 호출
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/auth/apple'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'identityToken': credential.identityToken,
+          'authorizationCode': credential.authorizationCode,
+          'email': credential.email,
+          'givenName': credential.givenName,
+          'familyName': credential.familyName,
+        }),
       );
-      
-      return true;
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        _currentUser = User(
+          id: data['user']['id'] ?? 'apple_user_${DateTime.now().millisecondsSinceEpoch}',
+          email: data['user']['email'] ?? credential.email ?? '',
+          name: data['user']['name'] ?? 
+                (credential.givenName != null ? '${credential.familyName ?? ''}${credential.givenName}' : '사용자'),
+          createdAt: DateTime.now(),
+        );
+        
+        return true;
+      } else {
+        print('Apple sign in failed: ${response.statusCode}');
+        return false;
+      }
     } catch (e) {
-      print('Naver sign in error: $e');
+      print('Apple sign in error: $e');
       return false;
     }
   }

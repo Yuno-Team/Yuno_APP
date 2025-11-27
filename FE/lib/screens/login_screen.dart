@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../services/auth_service.dart';
 import 'profile_input_screen.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -43,29 +44,6 @@ class LoginScreen extends StatelessWidget {
               // 소셜 로그인 버튼들
               Column(
                 children: [
-                  // 구글 로그인 버튼
-                  _buildSocialLoginButton(
-                    iconPath: 'assets/icons/google.svg',
-                    text: '구글로 로그인 하기',
-                    backgroundColor: Colors.white,
-                    textColor: Color(0xFF545454),
-                    borderColor: Color(0xFFEBEBEB),
-                    onTap: () => _handleGoogleLogin(context),
-                  ),
-
-                  SizedBox(height: 8),
-
-                  // 네이버 로그인 버튼
-                  _buildSocialLoginButton(
-                    iconPath: 'assets/icons/naver.svg',
-                    text: '네이버로 로그인 하기',
-                    backgroundColor: Color(0xFF03CF5D),
-                    textColor: Colors.white,
-                    onTap: () => _handleNaverLogin(context),
-                  ),
-
-                  SizedBox(height: 8),
-
                   // 카카오 로그인 버튼
                   _buildSocialLoginButton(
                     iconPath: 'assets/icons/kakao.svg',
@@ -73,6 +51,20 @@ class LoginScreen extends StatelessWidget {
                     backgroundColor: Color(0xFFF9E000),
                     textColor: Color(0xFF371C1D),
                     onTap: () => _handleKakaoLogin(context),
+                    isImage: false,
+                  ),
+
+                  SizedBox(height: 8),
+
+                  // 애플 로그인 버튼
+                  _buildSocialLoginButton(
+                    iconPath: 'assets/icons/apple_login.png',
+                    text: 'Apple로 로그인 하기',
+                    backgroundColor: Colors.black,
+                    textColor: Colors.white,
+                    borderColor: Color(0xFF3A3A3C),
+                    onTap: () => _handleAppleLogin(context),
+                    isImage: true,
                   ),
 
                   SizedBox(height: 16),
@@ -109,6 +101,7 @@ class LoginScreen extends StatelessWidget {
     required Color textColor,
     Color? borderColor,
     required VoidCallback onTap,
+    required bool isImage,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -127,12 +120,26 @@ class LoginScreen extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset(
-                iconPath,
-                width: 24,
-                height: 24,
-              ),
-              SizedBox(width: 8),
+              isImage
+                  ? Image.asset(
+                      iconPath,
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        // 이미지 로드 실패 시 기본 애플 아이콘 표시
+                        return Icon(
+                          Icons.apple,
+                          size: 24,
+                          color: textColor,
+                        );
+                      },
+                    )
+                  : SvgPicture.asset(
+                      iconPath,
+                      width: 24,
+                      height: 24,
+                    ),
+              SizedBox(width: 10),
               Text(
                 text,
                 style: GoogleFonts.notoSans(
@@ -149,19 +156,64 @@ class LoginScreen extends StatelessWidget {
     );
   }
 
-  void _handleGoogleLogin(BuildContext context) {
-    // TODO: 구글 로그인 로직 구현
-    _navigateToNextScreen(context, isGuest: false);
-  }
+  Future<void> _handleAppleLogin(BuildContext context) async {
+    try {
+      // 로딩 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
 
-  void _handleNaverLogin(BuildContext context) {
-    // TODO: 네이버 로그인 로직 구현
-    _navigateToNextScreen(context, isGuest: false);
+      final authService = AuthService();
+      final success = await authService.signInWithApple();
+
+      // 로딩 닫기
+      Navigator.of(context).pop();
+
+      if (success) {
+        _navigateToNextScreen(context, isGuest: false);
+      } else {
+        _showErrorDialog(context, 'Apple 로그인에 실패했습니다.');
+      }
+    } catch (e) {
+      // 로딩 닫기
+      Navigator.of(context).pop();
+      _showErrorDialog(context, 'Apple 로그인 중 오류가 발생했습니다.');
+    }
   }
 
   void _handleKakaoLogin(BuildContext context) {
     // TODO: 카카오 로그인 로직 구현
     _navigateToNextScreen(context, isGuest: false);
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Color(0xFF252931),
+        title: Text(
+          '로그인 실패',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(color: Color(0xFFBDC4D0)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              '확인',
+              style: TextStyle(color: Color(0xFF2C7FFF)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleGuestLogin(BuildContext context) {
