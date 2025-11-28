@@ -1007,20 +1007,29 @@ class OntongService {
   }
 
   /**
-   * 정책 상세 데이터 변환
+   * 정책 상세 데이터 변환 (2025 신규 API 필드명 사용)
    */
   transformPolicyDetail(data) {
-    const detail = data.youthPolicyDetail;
+    // 2025년 신규 API: result.youthPolicyList[0]
+    const detail = data.result?.youthPolicyList?.[0] || data.youthPolicyDetail;
+
+    if (!detail) {
+      return null;
+    }
 
     return {
-      ...this.transformPolicies({ youthPolicy: [detail] })[0],
+      ...this.transformPolicies({ result: { youthPolicyList: [detail] } })[0],
       contact_info: {
-        department: detail.cnsgNmor,
-        phone: detail.tintCherCn,
-        email: detail.cherCtpcCn
+        supervisor: detail.sprvsnInstCdNm || '',      // 주관기관명
+        operator: detail.operInstCdNm || '',          // 운영기관명
+        supervisorPic: detail.sprvsnInstPicNm || '',  // 주관기관 담당자
+        operatorPic: detail.operInstPicNm || ''       // 운영기관 담당자
       },
-      benefits: this.parseBenefits(detail.sporCn),
-      documents: this.parseDocuments(detail.pstnPaprCn)
+      benefits: this.parseBenefits(detail.plcySprtCn),      // 지원내용
+      documents: this.parseDocuments(detail.sbmsnDcmntCn),  // 제출서류
+      applyMethod: detail.plcyAplyMthdCn || '',             // 신청방법
+      selectionMethod: detail.srngMthdCn || '',             // 선정방법
+      etcInfo: detail.etcMttrCn || ''                       // 기타사항
     };
   }
 
