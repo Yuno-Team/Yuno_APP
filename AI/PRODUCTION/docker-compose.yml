@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  ai-server:
+    build: .
+    container_name: yuno-ai-server
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - BACKEND_API_URL=${BACKEND_API_URL:-http://backend:3000}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      # 로그 및 캐시를 위한 볼륨 (선택사항)
+      - ai_cache:/app/cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  nginx:
+    image: nginx:alpine
+    container_name: yuno-ai-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/ssl:ro
+    depends_on:
+      - ai-server
+    restart: unless-stopped
+
+volumes:
+  ai_cache:
