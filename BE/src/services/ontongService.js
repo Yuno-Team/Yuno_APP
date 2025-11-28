@@ -483,53 +483,18 @@ class OntongService {
   }
 
   /**
-   * 정책 목록 조회 (데이터베이스 캐시 우선, API는 갱신시에만)
+   * 정책 목록 조회 (DB에서만 조회 - API 호출 안 함)
+   * API 동기화는 별도 스크립트(simpleSyncPolicies.js)에서만 실행
    */
   async getPolicies(params = {}) {
-    const {
-      page = 1,
-      limit = 20,
-      category,
-      region,
-      searchText,
-      ageMin,
-      ageMax
-    } = params;
+    const { page = 1, limit = 20 } = params;
 
     try {
-      // 1단계: 데이터베이스에서 조회
       const dbResult = await this.getPoliciesFromDB(params);
-
-      // 데이터가 충분하고 최신이면 반환
-      if (dbResult.policies.length > 0 && this.isDataFresh(dbResult.lastCached)) {
-        console.log(`[DB] 정책 조회 성공: ${dbResult.policies.length}개 (페이지 ${page})`);
-        return dbResult;
-      }
-
-      // 2단계: 데이터가 부족하거나 오래된 경우 API 호출 후 캐시 업데이트
-      console.log('[API] 정책 데이터 갱신 필요, 온통청년 API 호출...');
-
-      try {
-        const apiResult = await this.getPoliciesFromAPI(params);
-
-        // API 데이터를 데이터베이스에 저장 (백그라운드)
-        this.updateCacheInBackground(apiResult.policies, category);
-
-        return apiResult;
-      } catch (apiError) {
-        console.error('온통청년 API 호출 실패, 캐시된 데이터 반환:', apiError.message);
-
-        // API 실패시 오래된 캐시라도 반환
-        return dbResult.policies.length > 0 ? dbResult : {
-          policies: [],
-          pagination: { page, limit, total: 0, hasNext: false }
-        };
-      }
-
+      console.log(`[DB] 정책 조회 성공: ${dbResult.policies.length}개 (페이지 ${page})`);
+      return dbResult;
     } catch (error) {
       console.error('정책 조회 중 오류:', error);
-
-      // 모든 것이 실패하면 빈 결과 반환
       return {
         policies: [],
         pagination: { page, limit, total: 0, hasNext: false }
@@ -837,25 +802,10 @@ class OntongService {
   }
 
   /**
-   * 정책 상세 조회
+   * 정책 상세 조회 (DB에서만 조회 - 온통청년 API 호출 안 함)
    */
   async getPolicyDetail(policyId) {
     try {
-      const response = await this.client.get('/go/ythip/getPlcy', {
-        params: {
-          apiKeyNm: this.apiKey,
-          pageType: '2',
-          plcyNo: policyId,
-          rtnType: 'json'
-        }
-      });
-
-      return this.transformPolicyDetail(response.data);
-
-    } catch (error) {
-      console.error('정책 상세 조회 실패:', error);
-
-      // 캐시에서 상세 정보 조회
       const result = await db.query(
         'SELECT * FROM policies WHERE id = $1',
         [policyId]
@@ -865,6 +815,9 @@ class OntongService {
 
       // DB 정책을 프론트엔드 형식으로 변환
       return this.transformToFrontendFormat(result.rows[0]);
+    } catch (error) {
+      console.error('정책 상세 조회 실패:', error);
+      return null;
     }
   }
 
@@ -1007,20 +960,29 @@ class OntongService {
   }
 
   /**
-   * 정책 상세 데이터 변환
+   * 정책 상세 데이터 변환 (2025 신규 API 필드명 사용)
    */
   transformPolicyDetail(data) {
-    const detail = data.youthPolicyDetail;
+    // 2025년 신규 API: result.youthPolicyList[0]
+    const detail = data.result?.youthPolicyList?.[0] || data.youthPolicyDetail;
+
+    if (!detail) {
+      return null;
+    }
 
     return {
-      ...this.transformPolicies({ youthPolicy: [detail] })[0],
+      ...this.transformPolicies({ result: { youthPolicyList: [detail] } })[0],
       contact_info: {
-        department: detail.cnsgNmor,
-        phone: detail.tintCherCn,
-        email: detail.cherCtpcCn
+        supervisor: detail.sprvsnInstCdNm || '',      // 주관기관명
+        operator: detail.operInstCdNm || '',          // 운영기관명
+        supervisorPic: detail.sprvsnInstPicNm || '',  // 주관기관 담당자
+        operatorPic: detail.operInstPicNm || ''       // 운영기관 담당자
       },
-      benefits: this.parseBenefits(detail.sporCn),
-      documents: this.parseDocuments(detail.pstnPaprCn)
+      benefits: this.parseBenefits(detail.plcySprtCn),      // 지원내용
+      documents: this.parseDocuments(detail.sbmsnDcmntCn),  // 제출서류
+      applyMethod: detail.plcyAplyMthdCn || '',             // 신청방법
+      selectionMethod: detail.srngMthdCn || '',             // 선정방법
+      etcInfo: detail.etcMttrCn || ''                       // 기타사항
     };
   }
 

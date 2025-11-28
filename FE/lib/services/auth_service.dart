@@ -28,33 +28,43 @@ class AuthService {
         return false;
       }
 
-      // 백엔드 API 호출
+      // 백엔드 API 호출 (social-login 엔드포인트 사용)
       final response = await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/auth/apple'),
+        Uri.parse('${ApiConstants.baseUrl}/auth/social-login'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'identityToken': credential.identityToken,
-          'authorizationCode': credential.authorizationCode,
-          'email': credential.email,
-          'givenName': credential.givenName,
-          'familyName': credential.familyName,
+          'provider': 'apple',
+          'idToken': credential.identityToken,
+          'deviceInfo': {
+            'platform': 'ios',
+            'loginMethod': 'apple',
+          },
         }),
       );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
+        // 백엔드 응답 구조에 맞게 파싱
+        final userData = data['data']?['user'] ?? data['user'];
+        final tokens = data['data']?['tokens'];
+        
         _currentUser = User(
-          id: data['user']['id'] ?? 'apple_user_${DateTime.now().millisecondsSinceEpoch}',
-          email: data['user']['email'] ?? credential.email ?? '',
-          name: data['user']['name'] ?? 
-                (credential.givenName != null ? '${credential.familyName ?? ''}${credential.givenName}' : '사용자'),
+          id: userData?['id']?.toString() ?? 'apple_user_${DateTime.now().millisecondsSinceEpoch}',
+          email: userData?['email'] ?? credential.email ?? '',
+          name: userData?['name'] ?? 
+                (credential.givenName != null ? '${credential.familyName ?? ''}${credential.givenName}' : 'Apple 사용자'),
           createdAt: DateTime.now(),
         );
         
+        // TODO: 토큰 저장 (SharedPreferences 등)
+        // if (tokens != null) {
+        //   await _saveTokens(tokens['accessToken'], tokens['refreshToken']);
+        // }
+        
         return true;
       } else {
-        print('Apple sign in failed: ${response.statusCode}');
+        print('Apple sign in failed: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {
