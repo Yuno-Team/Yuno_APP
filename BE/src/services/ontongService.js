@@ -483,53 +483,18 @@ class OntongService {
   }
 
   /**
-   * 정책 목록 조회 (데이터베이스 캐시 우선, API는 갱신시에만)
+   * 정책 목록 조회 (DB에서만 조회 - API 호출 안 함)
+   * API 동기화는 별도 스크립트(simpleSyncPolicies.js)에서만 실행
    */
   async getPolicies(params = {}) {
-    const {
-      page = 1,
-      limit = 20,
-      category,
-      region,
-      searchText,
-      ageMin,
-      ageMax
-    } = params;
+    const { page = 1, limit = 20 } = params;
 
     try {
-      // 1단계: 데이터베이스에서 조회
       const dbResult = await this.getPoliciesFromDB(params);
-
-      // 데이터가 충분하고 최신이면 반환
-      if (dbResult.policies.length > 0 && this.isDataFresh(dbResult.lastCached)) {
-        console.log(`[DB] 정책 조회 성공: ${dbResult.policies.length}개 (페이지 ${page})`);
-        return dbResult;
-      }
-
-      // 2단계: 데이터가 부족하거나 오래된 경우 API 호출 후 캐시 업데이트
-      console.log('[API] 정책 데이터 갱신 필요, 온통청년 API 호출...');
-
-      try {
-        const apiResult = await this.getPoliciesFromAPI(params);
-
-        // API 데이터를 데이터베이스에 저장 (백그라운드)
-        this.updateCacheInBackground(apiResult.policies, category);
-
-        return apiResult;
-      } catch (apiError) {
-        console.error('온통청년 API 호출 실패, 캐시된 데이터 반환:', apiError.message);
-
-        // API 실패시 오래된 캐시라도 반환
-        return dbResult.policies.length > 0 ? dbResult : {
-          policies: [],
-          pagination: { page, limit, total: 0, hasNext: false }
-        };
-      }
-
+      console.log(`[DB] 정책 조회 성공: ${dbResult.policies.length}개 (페이지 ${page})`);
+      return dbResult;
     } catch (error) {
       console.error('정책 조회 중 오류:', error);
-
-      // 모든 것이 실패하면 빈 결과 반환
       return {
         policies: [],
         pagination: { page, limit, total: 0, hasNext: false }
