@@ -837,25 +837,10 @@ class OntongService {
   }
 
   /**
-   * 정책 상세 조회
+   * 정책 상세 조회 (DB에서만 조회 - 온통청년 API 호출 안 함)
    */
   async getPolicyDetail(policyId) {
     try {
-      const response = await this.client.get('/go/ythip/getPlcy', {
-        params: {
-          apiKeyNm: this.apiKey,
-          pageType: '2',
-          plcyNo: policyId,
-          rtnType: 'json'
-        }
-      });
-
-      return this.transformPolicyDetail(response.data);
-
-    } catch (error) {
-      console.error('정책 상세 조회 실패:', error);
-
-      // 캐시에서 상세 정보 조회
       const result = await db.query(
         'SELECT * FROM policies WHERE id = $1',
         [policyId]
@@ -865,6 +850,9 @@ class OntongService {
 
       // DB 정책을 프론트엔드 형식으로 변환
       return this.transformToFrontendFormat(result.rows[0]);
+    } catch (error) {
+      console.error('정책 상세 조회 실패:', error);
+      return null;
     }
   }
 
