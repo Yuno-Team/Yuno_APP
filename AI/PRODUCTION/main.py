@@ -223,6 +223,10 @@ async def fetch_policy_from_backend(policy_id: str) -> Optional[Dict[str, Any]]:
             if response.status_code == 200:
                 policy_data = response.json()
                 print(f"[INFO] Successfully fetched policy {policy_id} from backend")
+                print(f"[DEBUG] Backend response structure: {list(policy_data.keys()) if isinstance(policy_data, dict) else type(policy_data)}")
+                if isinstance(policy_data, dict) and 'data' in policy_data:
+                    print(f"[DEBUG] Policy data is nested under 'data' key")
+                    print(f"[DEBUG] Data keys: {list(policy_data['data'].keys())}")
                 return policy_data
             elif response.status_code == 404:
                 print(f"[WARNING] Policy {policy_id} not found in backend")
@@ -377,11 +381,16 @@ async def get_policy_summary(request: SummaryRequest):
             backend_policy = await fetch_policy_from_backend(request.policy_id)
 
             if backend_policy:
+                # 백엔드 응답에서 'data' 키 추출 (백엔드는 {success, message, data} 형식으로 응답)
+                policy_data = backend_policy.get('data', backend_policy)
+
                 # 백엔드에서 정책을 찾은 경우
-                policy_title = backend_policy.get('title', '정책')
-                policy_description = backend_policy.get('description', '정보 없음')
-                policy_category = backend_policy.get('category', '정보 없음')
-                support_content = backend_policy.get('content', '정보 없음')
+                policy_title = policy_data.get('plcyNm', '정책')
+                policy_description = policy_data.get('plcyExplnCn', '정보 없음')
+                policy_category = policy_data.get('bscPlanPlcyWayNoNm', '정보 없음')
+                support_content = policy_data.get('plcySprtCn', '정보 없음')
+                print(f"[DEBUG] Policy data - Title: {policy_title}, Category: {policy_category}")
+                print(f"[DEBUG] Description length: {len(policy_description)}, Support content length: {len(support_content)}")
                 print(f"[INFO] Using backend API data for policy ID: {request.policy_id}")
             elif request.policy_title:
                 # 백엔드에도 없지만 요청 데이터가 있는 경우
@@ -408,7 +417,7 @@ async def get_policy_summary(request: SummaryRequest):
 
         user_info_section = f"사용자 정보:\n{user_info}" if user_info else ""
 
-        prompt = f"""다음 정책 정보를 보고, 사용자에게 맞춤형 요약을 2-3문장으로 작성해주세요.
+        prompt = f"""당신은 청년 정책 전문가입니다. 아래 정책을 청년이 쉽게 이해할 수 있도록 친근하고 자연스럽게 요약해주세요.
 
 정책 정보:
 - 제목: {policy_title}
@@ -418,12 +427,12 @@ async def get_policy_summary(request: SummaryRequest):
 
 {user_info_section}
 
-요구사항:
-1. 친근하고 격려하는 말투 사용
-2. 사용자 정보가 있다면 그에 맞춰 설명
-3. 정책의 핵심 혜택과 왜 이 사용자에게 적합한지 설명
-4. 2-3문장으로 간결하게
-5. 이모지는 사용하지 말 것"""
+3-4문장으로 다음을 포함해 요약하세요:
+1. 어떤 지원을 받을 수 있는지
+2. 신청 자격이 어떻게 되는지
+3. 사용자 정보가 있다면 이 사용자에게 어떤 도움이 될지
+
+주의: 메타 정보(##, 예시 등) 없이 바로 본론으로 시작하고, 이모지는 사용하지 마세요."""
 
         # Gemini API 호출 (새 SDK)
         response = gemini_client.models.generate_content(
